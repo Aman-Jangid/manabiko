@@ -1,5 +1,23 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFContext } from "pdf-lib";
 import { BookInfo } from "../utils/BookTypes";
+
+// Define a type for accessing PDF metadata properties not fully exposed in pdf-lib types
+interface PDFMetadata {
+  getTitle?: () => string | Promise<string | null>;
+  getAuthor?: () => string | Promise<string | null>;
+  info?: {
+    Title?: string;
+    title?: string;
+    Author?: string;
+    author?: string;
+  };
+  catalog?: {
+    dict?: {
+      get(name: string): unknown;
+    };
+  };
+  context?: PDFContext;
+}
 
 /**
  * Extracts basic metadata from a PDF file
@@ -17,17 +35,17 @@ export async function extractBasicInfo(
     const pdfDoc = await PDFDocument.load(arrayBuffer);
     const pageCount = pdfDoc.getPageCount();
 
-    // Extract metadata - pdf-lib types might not expose info directly
-    const pdfDocAny = pdfDoc as any;
+    // Extract metadata - using a separate type for metadata access
+    const pdfDocWithMeta = pdfDoc as unknown as PDFMetadata;
 
     // Try multiple approaches to get metadata
     let title = "Untitled";
     let author = "Unknown Author";
 
     // Approach 1: Standard PDF metadata
-    if (pdfDocAny.getTitle) {
+    if (pdfDocWithMeta.getTitle) {
       try {
-        const rawTitle = await pdfDocAny.getTitle();
+        const rawTitle = await pdfDocWithMeta.getTitle();
         if (
           rawTitle &&
           typeof rawTitle === "string" &&
@@ -41,9 +59,9 @@ export async function extractBasicInfo(
       }
     }
 
-    if (pdfDocAny.getAuthor) {
+    if (pdfDocWithMeta.getAuthor) {
       try {
-        const rawAuthor = await pdfDocAny.getAuthor();
+        const rawAuthor = await pdfDocWithMeta.getAuthor();
         if (
           rawAuthor &&
           typeof rawAuthor === "string" &&
@@ -60,9 +78,9 @@ export async function extractBasicInfo(
     // Approach 2: Direct metadata access via info object
     if (
       (title === "Untitled" || author === "Unknown Author") &&
-      pdfDocAny.info
+      pdfDocWithMeta.info
     ) {
-      const info = pdfDocAny.info || {};
+      const info = pdfDocWithMeta.info || {};
 
       if (
         title === "Untitled" &&
@@ -104,11 +122,11 @@ export async function extractBasicInfo(
     // Approach 3: Look for metadata in document catalog dictionary (more low-level)
     if (
       (title === "Untitled" || author === "Unknown Author") &&
-      pdfDocAny.context &&
-      pdfDocAny.catalog
+      pdfDocWithMeta.context &&
+      pdfDocWithMeta.catalog
     ) {
       try {
-        const catalogDict = pdfDocAny.catalog.dict;
+        const catalogDict = pdfDocWithMeta.catalog.dict;
 
         if (catalogDict && catalogDict.get) {
           const metadata = catalogDict.get("Metadata");
@@ -154,6 +172,13 @@ export async function extractCoverImage(
 
     // Load PDF.js dynamically
     const pdfjs = await import("pdfjs-dist");
+
+    // Ensure worker is initialized properly
+    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+      const workerSrc = `${window.location.origin}/pdf.worker.min.js`;
+      pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+      console.log("Set PDF.js worker in cover extraction:", workerSrc);
+    }
     console.log(
       "Using PDF.js worker from:",
       pdfjs.GlobalWorkerOptions.workerSrc
@@ -208,8 +233,21 @@ export async function extractTextFromFirstPages(
 ): Promise<string> {
   try {
     console.log("Starting text extraction from first pages...");
+    // Check if we're in browser environment
+    if (typeof window === "undefined") {
+      console.log("Skipping text extraction in server environment");
+      return "";
+    }
+
     // Load PDF.js dynamically
     const pdfjs = await import("pdfjs-dist");
+
+    // Ensure worker is initialized properly
+    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+      const workerSrc = `${window.location.origin}/pdf.worker.min.js`;
+      pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+      console.log("Set PDF.js worker in text extraction:", workerSrc);
+    }
     console.log(
       "Using PDF.js worker from:",
       pdfjs.GlobalWorkerOptions.workerSrc
@@ -256,14 +294,22 @@ export async function extractTextFromFirstPages(
  */
 export async function initPdfWorker(): Promise<void> {
   try {
-    const pdfjs = await import("pdfjs-dist");
-    // Use a local worker from node_modules instead of CDN
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url
-    ).toString();
+    // Make sure we're in the browser environment
+    if (typeof window === "undefined") {
+      console.log(
+        "Skipping PDF.js worker initialization in server environment"
+      );
+      return;
+    }
 
-    console.log("PDF.js worker initialized successfully");
+    const pdfjs = await import("pdfjs-dist");
+
+    // For Next.js, we need to properly handle client-side initialization
+    // Set worker path to absolute URL
+    const workerSrc = `${window.location.origin}/pdf.worker.min.js`;
+    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+
+    console.log("PDF.js worker initialized successfully with path:", workerSrc);
   } catch (error) {
     console.error("Failed to initialize PDF.js worker:", error);
   }
