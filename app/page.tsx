@@ -1,7 +1,8 @@
 "use client";
 
 import { Moon, User } from "lucide-react";
-import LibraryArea from "./libraryArea";
+// import LibraryArea from "./libraryArea";
+import UploadArea from "./uploadArea";
 
 export default function Home() {
   return (
@@ -15,7 +16,8 @@ export default function Home() {
       </header>
 
       <main className="w-full grow flex items-center justify-center row-span-2 z-10">
-        <LibraryArea />
+        {/* <LibraryArea /> */}
+        <UploadArea />
       </main>
     </div>
   );
