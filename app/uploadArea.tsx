@@ -1,6 +1,6 @@
 "use client";
 
-import { UploadIcon, XIcon, BookIcon, FileText, InfoIcon } from "lucide-react";
+import { UploadIcon, XIcon, BookIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { BookInfo, TOCItem } from "@/utils/BookTypes";
@@ -11,24 +11,11 @@ import {
   shouldFetchCover,
 } from "@/services/openLibraryService";
 
-interface OpenLibraryData {
-  title?: string;
-  authors?: { name: string }[];
-  publish_date?: string;
-  cover_i?: number;
-  cover_url?: string;
-  description?: string;
-}
-
 export default function UploadArea() {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [splitPages, setSplitPages] = useState<Blob[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [bookInfo, setBookInfo] = useState<BookInfo | null>(null);
-  const [openLibraryData, setOpenLibraryData] =
-    useState<OpenLibraryData | null>(null);
-  const [isLoadingExtraData, setIsLoadingExtraData] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize the PDF.js worker
@@ -76,9 +63,7 @@ export default function UploadArea() {
     console.log(`File uploaded: ${file.name}, size: ${file.size} bytes`);
     setUploadedFile(file);
     // Reset split pages and book info when uploading a new file
-    setSplitPages([]);
     setBookInfo(null);
-    setOpenLibraryData(null);
   };
 
   const processFile = async () => {
@@ -88,13 +73,10 @@ export default function UploadArea() {
       setIsProcessing(true);
 
       // Process the PDF file using the service
-      const { bookInfo: info, splitPages: pages } = await processPdfFile(
-        uploadedFile
-      );
+      const { bookInfo: info } = await processPdfFile(uploadedFile);
 
       // Update state with the processed data
       setBookInfo(info);
-      setSplitPages(pages);
 
       // Auto-fetch additional data if ISBN is available and we need more data
       if (
@@ -120,14 +102,10 @@ export default function UploadArea() {
 
   const fetchExtraBookData = async (isbn: string) => {
     try {
-      setIsLoadingExtraData(true);
-
       // Use the OpenLibrary service to fetch data
       const olData = await fetchBookDataByISBN(isbn);
 
       if (olData) {
-        setOpenLibraryData(olData);
-
         // Update book metadata with the fetched data if original data was incomplete
         if (bookInfo) {
           const updatedInfo = enrichBookInfoWithOpenLibraryData(
@@ -139,58 +117,33 @@ export default function UploadArea() {
       }
     } catch (error) {
       console.error("Error fetching book data:", error);
-    } finally {
-      setIsLoadingExtraData(false);
     }
   };
 
   const removeFile = () => {
     setUploadedFile(null);
-    setSplitPages([]);
     setBookInfo(null);
-    setOpenLibraryData(null);
-  };
-
-  const downloadPage = (pageBlob: Blob, index: number) => {
-    const url = URL.createObjectURL(pageBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `page_${index + 1}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    console.log(`Downloaded page ${index + 1}`);
   };
 
   const handleManualSelect = () => {
     fileInputRef.current?.click();
   };
 
-  // Helper to render table of contents
-  const renderTOC = (items: TOCItem[] | undefined) => {
-    if (!items || items.length === 0)
-      return (
-        <p className="text-gray-400 text-sm">No table of contents found</p>
-      );
-
-    return (
-      <div className="max-h-[150px] overflow-y-auto">
-        <ul className="text-sm">
-          {items.map((item, index) => (
-            <li
-              key={index}
-              className="py-1"
-              style={{ marginLeft: `${item.level * 16}px` }}
-            >
-              <span className="font-medium">{item.title}</span>
-              <span className="text-gray-400 ml-2">p.{item.pageNumber}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
+  // Helper to filter out only true extras and flatten TOC to top-level chapters
+  function filterChapters(items: TOCItem[]): TOCItem[] {
+    return items.filter((item) => {
+      if (item.level !== 0 || item.title.length <= 2) return false;
+      // Normalize: remove all leading whitespace, non-breaking spaces, and '&#160;' entities, then lowercase
+      const normalized = item.title
+        .replace(/^(?:\s|\u00A0|&#160;)+/gu, "")
+        .replace(/&#160;/g, "")
+        .trim()
+        .toLowerCase();
+      // Only include if it looks like a chapter (e.g., starts with 'chapter' or a number + dot/space)
+      if (/^(chapter\s*\d+|\d+\.|\d+\s)/.test(normalized)) return true;
+      return false;
+    });
+  }
 
   return (
     <div className="grid grid-rows-[auto_1fr_auto] self-center h-min justify-items-center gap-6 text-white z-10">
@@ -232,120 +185,105 @@ export default function UploadArea() {
             <p className="text-center font-medium">{uploadedFile.name}</p>
 
             {bookInfo ? (
-              <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Book info section */}
-                <div className="flex flex-col gap-4">
-                  <div className="flex gap-4 items-center">
-                    {/* Display cover image in order of priority */}
-                    {bookInfo.coverImagePath ? (
-                      <div className="w-32 h-40 rounded overflow-hidden relative">
-                        <Image
-                          src={bookInfo.coverImagePath}
-                          alt="Book cover"
-                          fill
-                          sizes="128px"
-                          style={{ objectFit: "cover" }}
-                          priority
-                        />
-                      </div>
-                    ) : bookInfo.externalCoverUrl ? (
-                      <div className="w-32 h-40 rounded overflow-hidden relative">
-                        <Image
-                          src={bookInfo.externalCoverUrl}
-                          alt="Book cover"
-                          fill
-                          sizes="128px"
-                          style={{ objectFit: "cover" }}
-                          priority
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-32 h-40 bg-gray-800 rounded flex items-center justify-center">
-                        <BookIcon size={48} className="text-gray-600" />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <h2 className="text-lg font-medium">{bookInfo.title}</h2>
-                      <p className="text-gray-400">{bookInfo.author}</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        {bookInfo.pages} pages
-                      </p>
-
-                      {bookInfo.isbn && (
-                        <div className="flex items-center mt-2 gap-2">
-                          <p className="text-sm text-gray-500">
-                            ISBN: {bookInfo.isbn}
-                          </p>
-                          {/* Only show "More info" button if we don't have OpenLibrary data yet */}
-                          {!openLibraryData && !isLoadingExtraData && (
-                            <button
-                              onClick={() => fetchExtraBookData(bookInfo.isbn!)}
-                              className="text-blue-400 hover:text-blue-300 flex items-center gap-1 text-xs"
-                              title="Fetch additional book data"
-                            >
-                              <InfoIcon size={12} />
-                              <span>More info</span>
-                            </button>
-                          )}
-                          {isLoadingExtraData && (
-                            <span className="text-xs text-gray-500">
-                              Loading...
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {openLibraryData?.publish_date && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Published: {openLibraryData.publish_date}
-                        </p>
-                      )}
+              <div className="w-full flex flex-col items-center gap-8">
+                {/* Book cover and info */}
+                <div className="flex flex-col md:flex-row gap-6 w-full items-center justify-center">
+                  {/* Book cover */}
+                  {bookInfo.coverImagePath ? (
+                    <div className="w-32 h-40 rounded overflow-hidden relative">
+                      <Image
+                        src={bookInfo.coverImagePath}
+                        alt="Book cover"
+                        fill
+                        sizes="128px"
+                        style={{ objectFit: "cover" }}
+                        priority
+                      />
                     </div>
-                  </div>
-
-                  {openLibraryData?.description && (
-                    <div className="mt-1">
-                      <h3 className="text-md font-medium mb-1">Description</h3>
-                      <p className="text-sm text-gray-300 max-h-24 overflow-y-auto">
-                        {openLibraryData.description}
-                      </p>
+                  ) : bookInfo.externalCoverUrl ? (
+                    <div className="w-32 h-40 rounded overflow-hidden relative">
+                      <Image
+                        src={bookInfo.externalCoverUrl}
+                        alt="Book cover"
+                        fill
+                        sizes="128px"
+                        style={{ objectFit: "cover" }}
+                        priority
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-32 h-40 bg-gray-800 rounded flex items-center justify-center">
+                      <BookIcon size={48} className="text-gray-600" />
                     </div>
                   )}
-
-                  {bookInfo.tableOfContents &&
-                    bookInfo.tableOfContents.length > 0 && (
-                      <div className="mt-1">
-                        <h3 className="text-md font-medium mb-2">
-                          Table of Contents
+                  {/* Book info */}
+                  <div className="flex-1 flex flex-col gap-2 items-center md:items-start">
+                    <h2 className="text-lg font-medium">{bookInfo.title}</h2>
+                    <p className="text-gray-400">{bookInfo.author}</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      {bookInfo.pages} pages
+                    </p>
+                    {bookInfo.isbn && (
+                      <p className="text-sm text-gray-500">
+                        ISBN: {bookInfo.isbn}
+                      </p>
+                    )}
+                    {bookInfo.description && (
+                      <div className="mt-1 max-w-xs">
+                        <h3 className="text-md font-medium mb-1">
+                          Description
                         </h3>
-                        {renderTOC(bookInfo.tableOfContents)}
+                        <p className="text-sm text-gray-300 max-h-24 overflow-y-auto">
+                          {bookInfo.description}
+                        </p>
                       </div>
                     )}
-                </div>
-
-                {/* Pages section */}
-                <div>
-                  <h3 className="text-md font-medium mb-3">Individual Pages</h3>
-                  <div className="max-h-[250px] overflow-y-auto grid grid-cols-3 gap-3">
-                    {splitPages.map((page, index) => (
-                      <button
-                        key={index}
-                        onClick={() => downloadPage(page, index)}
-                        className="p-3 border border-blue-400 rounded hover:bg-blue-400/20 transition-all text-sm flex items-center justify-center gap-2"
-                      >
-                        <FileText size={14} />
-                        <span>Page {index + 1}</span>
-                      </button>
-                    ))}
                   </div>
                 </div>
 
-                <button
-                  className="mt-4 px-4 py-2 border-2 border-red-400 rounded-md hover:bg-red-400/30 hover:border-dashed transition-all w-32"
-                  onClick={removeFile}
-                >
-                  Remove
-                </button>
+                {/* Main chapters as compact pill boxes, only top-level (level 0) */}
+                <div className="w-full flex flex-col items-start mt-4">
+                  <h3 className="text-md font-medium mb-2 text-left">
+                    Extracted Chapters
+                  </h3>
+                  <div
+                    className="w-full mx-auto flex flex-col gap-2 overflow-y-auto items-start"
+                    style={{ maxHeight: "180px" }}
+                  >
+                    {bookInfo.tableOfContents &&
+                      filterChapters(bookInfo.tableOfContents).map(
+                        (item, index) => (
+                          <div
+                            key={index}
+                            className="inline-block border border-blue-400 bg-blue-900/40 text-white text-xs font-medium rounded-full px-4 py-1 shadow-sm whitespace-nowrap text-center"
+                            style={{
+                              minWidth: "60px",
+                              maxWidth: "90%",
+                              margin: 0,
+                            }}
+                          >
+                            {item.title}
+                          </div>
+                        )
+                      )}
+                  </div>
+                </div>
+
+                {/* Action buttons: Add to Library and Cancel */}
+                <div className="w-full flex flex-row justify-center gap-6 mt-8">
+                  <button
+                    className="px-6 py-2 border-2 border-green-400 rounded-full hover:bg-green-400/30 transition-all text-base font-semibold text-green-300"
+                    onClick={() => alert("Add to library logic goes here!")}
+                  >
+                    Add to Library
+                  </button>
+                  <button
+                    className="px-6 py-2 border-2 border-red-400 rounded-full hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
+                    onClick={removeFile}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex gap-4">
