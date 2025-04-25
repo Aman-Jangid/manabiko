@@ -1,5 +1,6 @@
 import { PDFDocument, PDFContext } from "pdf-lib";
 import { BookInfo } from "../utils/BookTypes";
+import { extractTOCFromPDF } from "../utils/extractTOCFromPDF";
 
 // Define a type for accessing PDF metadata properties not fully exposed in pdf-lib types
 interface PDFMetadata {
@@ -316,6 +317,31 @@ export async function initPdfWorker(): Promise<void> {
 }
 
 /**
+ * Checks if a PDF is encrypted/password-protected
+ */
+export async function isPdfEncrypted(
+  arrayBuffer: ArrayBuffer | Uint8Array
+): Promise<boolean> {
+  try {
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+    return pdfDoc.isEncrypted;
+  } catch (error) {
+    // If we get an error during load that mentions "encrypted", assume it's encrypted
+    const errorMessage = String(error);
+    if (
+      errorMessage.includes("encrypted") ||
+      errorMessage.includes("password") ||
+      errorMessage.includes("Encrypted")
+    ) {
+      console.log("PDF appears to be encrypted based on error:", errorMessage);
+      return true;
+    }
+    // Rethrow other errors
+    throw error;
+  }
+}
+
+/**
  * Process a PDF file and extract all available metadata
  */
 export async function processPdfFile(file: File): Promise<{
@@ -328,6 +354,17 @@ export async function processPdfFile(file: File): Promise<{
     // Read the file only once and create copies for different operations
     const fileData = await file.arrayBuffer();
     console.log("File loaded into array buffer");
+
+    // Check if the PDF is encrypted before processing
+    const encryptionCheckBuffer = new Uint8Array(fileData.slice(0));
+    const isEncrypted = await isPdfEncrypted(encryptionCheckBuffer);
+
+    if (isEncrypted) {
+      console.error("Cannot process encrypted PDF:", file.name);
+      throw new Error(
+        "This PDF is encrypted or password-protected and cannot be processed"
+      );
+    }
 
     // Create separate copies for each operation to prevent detached ArrayBuffer issues
     const basicInfoBuffer = new Uint8Array(fileData.slice(0));
@@ -356,6 +393,10 @@ export async function processPdfFile(file: File): Promise<{
       coverImagePath ? "Success" : "Failed"
     );
 
+    // Extract Table of Contents (TOC)
+    const tableOfContents = await extractTOCFromPDF(basicInfoBuffer);
+    console.log("TOC extraction result:", tableOfContents);
+
     // Extract text from first few pages to find ISBN
     const text = await extractTextFromFirstPages(textExtractionBuffer);
     const isbn = extractISBN(text);
@@ -378,15 +419,10 @@ export async function processPdfFile(file: File): Promise<{
       title: basicInfo.title,
       author: basicInfo.author,
       isbn: isbn || undefined,
-      publishYear: undefined,
-      publisher: undefined,
-      description: undefined,
-      subjects: undefined,
-      source: filenameMeta.title || filenameMeta.author ? "filename" : "manual",
       originalFileName: file.name,
       pages: basicInfo.pageCount,
       coverImagePath: coverImagePath || undefined,
-      tableOfContents: [], // No TOC extracted in this simple version
+      tableOfContents: tableOfContents,
     };
 
     console.log("Book info created:", info);
