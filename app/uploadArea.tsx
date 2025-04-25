@@ -16,12 +16,56 @@ export default function UploadArea() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [bookInfo, setBookInfo] = useState<BookInfo | null>(null);
+  const [enhancedChapters, setEnhancedChapters] = useState<TOCItem[] | null>(
+    null
+  );
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize the PDF.js worker
   useEffect(() => {
     initPdfWorker();
   }, []);
+
+  // Enhance TOC with LLM after bookInfo is set
+  useEffect(() => {
+    async function enhanceTOC() {
+      if (
+        bookInfo &&
+        bookInfo.tableOfContents &&
+        bookInfo.tableOfContents.length > 0
+      ) {
+        setIsEnhancing(true);
+        setEnhanceError(null);
+        try {
+          const res = await fetch("/api/enhance-toc", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              bookInfo.tableOfContents.map(({ title, pageNumber }) => ({
+                title,
+                pageNumber,
+              }))
+            ),
+          });
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json();
+          setEnhancedChapters(data.chapters);
+        } catch {
+          setEnhanceError(
+            "Failed to enhance chapters. Showing basic extraction."
+          );
+          setEnhancedChapters(null);
+        } finally {
+          setIsEnhancing(false);
+        }
+      } else {
+        setEnhancedChapters(null);
+      }
+    }
+    enhanceTOC();
+  }, [bookInfo]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -243,6 +287,16 @@ export default function UploadArea() {
 
                 {/* Main chapters as compact pill boxes, only top-level (level 0) */}
                 <div className="w-full flex flex-col items-start mt-4">
+                  {isEnhancing && (
+                    <div className="text-blue-300 text-sm mb-2">
+                      Enhancing chapters with AI...
+                    </div>
+                  )}
+                  {enhanceError && (
+                    <div className="text-red-400 text-xs mb-2">
+                      {enhanceError}
+                    </div>
+                  )}
                   <h3 className="text-md font-medium mb-2 text-left">
                     Extracted Chapters
                   </h3>
@@ -250,22 +304,24 @@ export default function UploadArea() {
                     className="w-full mx-auto flex flex-col gap-2 overflow-y-auto items-start"
                     style={{ maxHeight: "180px" }}
                   >
-                    {bookInfo.tableOfContents &&
-                      filterChapters(bookInfo.tableOfContents).map(
-                        (item, index) => (
-                          <div
-                            key={index}
-                            className="inline-block border border-blue-400 bg-blue-900/40 text-white text-xs font-medium rounded-full px-4 py-1 shadow-sm whitespace-nowrap text-center"
-                            style={{
-                              minWidth: "60px",
-                              maxWidth: "90%",
-                              margin: 0,
-                            }}
-                          >
-                            {item.title}
-                          </div>
-                        )
-                      )}
+                    {(enhancedChapters ||
+                      (bookInfo && bookInfo.tableOfContents)) &&
+                      (
+                        enhancedChapters ??
+                        filterChapters(bookInfo!.tableOfContents!)
+                      ).map((item, index) => (
+                        <div
+                          key={index}
+                          className="inline-block border border-blue-400 bg-blue-900/40 text-white text-xs font-medium rounded-full px-4 py-1 shadow-sm whitespace-nowrap text-center"
+                          style={{
+                            minWidth: "60px",
+                            maxWidth: "90%",
+                            margin: 0,
+                          }}
+                        >
+                          {item.title}
+                        </div>
+                      ))}
                   </div>
                 </div>
 

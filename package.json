@@ -14,7 +14,8 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.1.91",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "together-ai": "^0.15.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
