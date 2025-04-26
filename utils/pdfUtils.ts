@@ -1,11 +1,12 @@
 import { TOCItem } from "./BookTypes";
-import { setupPdfJsWorker } from "./pdfjs-setup";
-import type { PDFDocumentProxy } from "pdfjs-dist";
 
 // Helper to resolve page number from destination
 export async function getPageNumberFromDest(
   dest: unknown,
-  pdfDocument: PDFDocumentProxy
+  pdfDocument: {
+    getDestination: (dest: string) => Promise<unknown>;
+    getPageIndex: (ref: object) => Promise<number>;
+  }
 ): Promise<number> {
   if (!dest) return 1;
   if (typeof dest === "string") {
@@ -41,7 +42,7 @@ export async function getPageNumberFromDest(
 export async function convertOutline(
   items: unknown[],
   level: number,
-  pdfDocument: PDFDocumentProxy
+  pdfDocument: unknown
 ): Promise<TOCItem[]> {
   return Promise.all(
     items.map(async (itemUnknown) => {
@@ -52,7 +53,13 @@ export async function convertOutline(
       };
       let pageNumber = 1;
       if (item.dest) {
-        pageNumber = await getPageNumberFromDest(item.dest, pdfDocument);
+        pageNumber = await getPageNumberFromDest(
+          item.dest,
+          pdfDocument as {
+            getDestination: (dest: string) => Promise<unknown>;
+            getPageIndex: (ref: object) => Promise<number>;
+          }
+        );
       }
       const children =
         item.items && item.items.length > 0
@@ -67,28 +74,4 @@ export async function convertOutline(
       return tocItem;
     })
   );
-}
-
-/**
- * Extracts the Table of Contents (outline) from a PDF file using pdfjs-dist.
- * @param arrayBuffer The PDF file as an ArrayBuffer or Uint8Array
- * @returns Promise<TOCItem[]>
- */
-export async function extractTOCFromPDF(
-  arrayBuffer: ArrayBuffer | Uint8Array
-): Promise<TOCItem[]> {
-  if (typeof window === "undefined") return [];
-  try {
-    const pdfjs = await import("pdfjs-dist");
-    setupPdfJsWorker(pdfjs);
-    const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
-    const pdfDocument: PDFDocumentProxy = await loadingTask.promise;
-    const outline = await pdfDocument.getOutline();
-    console.log("outline:", outline);
-    if (!outline || outline.length === 0) return [];
-    return await convertOutline(outline, 0, pdfDocument);
-  } catch (error) {
-    console.error("Error extracting TOC from PDF:", error);
-    return [];
-  }
 }

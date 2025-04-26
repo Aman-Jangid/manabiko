@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { enhanceTOCWithLLM, TOCItemLLM } from "@/utils/enhanceTOCWithLLM";
+import { enhanceTOCWithLLM } from "@/utils/enhanceTOCWithLLM";
 
 export default async function handler(
   req: NextApiRequest,
@@ -9,13 +9,14 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
   try {
-    const tocItems: TOCItemLLM[] = req.body;
-    if (!Array.isArray(tocItems)) {
-      return res.status(400).json({ error: "Invalid request body" });
+    const { toc, rawText } = req.body;
+    if (!rawText || typeof rawText !== "string") {
+      return res.status(400).json({ error: "rawText is required" });
     }
-    const enhanced = await enhanceTOCWithLLM(tocItems);
+    const enhanced = await enhanceTOCWithLLM(Array.isArray(toc) ? toc : []);
     return res.status(200).json({ chapters: enhanced });
   } catch (error: unknown) {
+    console.error("/api/enhance-toc error:", error);
     function isErrorWithMessage(err: unknown): err is { message: string } {
       return (
         typeof err === "object" &&

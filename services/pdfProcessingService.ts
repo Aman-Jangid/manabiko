@@ -1,5 +1,5 @@
 import { PDFDocument, PDFContext } from "pdf-lib";
-import { BookInfo } from "../utils/BookTypes";
+import { TOCItem } from "../utils/BookTypes";
 import { extractTOCFromPDF } from "../utils/extractTOCFromPDF";
 
 // Define a type for accessing PDF metadata properties not fully exposed in pdf-lib types
@@ -31,7 +31,6 @@ export async function extractBasicInfo(
   pageCount: number;
 }> {
   try {
-    console.log("Starting basic info extraction...");
     // Load PDF document with pdf-lib
     const pdfDoc = await PDFDocument.load(arrayBuffer);
     const pageCount = pdfDoc.getPageCount();
@@ -53,7 +52,6 @@ export async function extractBasicInfo(
           rawTitle.trim().length > 0
         ) {
           title = rawTitle.trim();
-          console.log("Title found using getTitle():", title);
         }
       } catch (err) {
         console.warn("Error accessing title via getTitle():", err);
@@ -69,7 +67,6 @@ export async function extractBasicInfo(
           rawAuthor.trim().length > 0
         ) {
           author = rawAuthor.trim();
-          console.log("Author found using getAuthor():", author);
         }
       } catch (err) {
         console.warn("Error accessing author via getAuthor():", err);
@@ -260,7 +257,7 @@ export async function extractTextFromFirstPages(
 
     // Get text from title page and first few pages to improve metadata discovery
     const pageCount = pdfDocument.numPages;
-    const maxPagesToScan = Math.min(10, pageCount); // Scan more pages for better chances
+    const maxPagesToScan = Math.min(20, pageCount); // Scan more pages for better chances
     let text = "";
 
     console.log(`Extracting text from pages 1 to ${maxPagesToScan}`);
@@ -342,95 +339,84 @@ export async function isPdfEncrypted(
 }
 
 /**
+ * Extracts text from a given page range (inclusive, 1-based) using PDF.js
+ */
+export async function extractTextFromPageRange(
+  arrayBuffer: ArrayBuffer | Uint8Array,
+  startPage: number,
+  endPage: number
+): Promise<string> {
+  try {
+    if (typeof window === "undefined") return "";
+    const pdfjs = await import("pdfjs-dist");
+    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+      const workerSrc = `${window.location.origin}/pdf.worker.min.js`;
+      pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+    }
+    const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+    const pdfDocument = await loadingTask.promise;
+    const pageCount = pdfDocument.numPages;
+    const safeStart = Math.max(1, startPage);
+    const safeEnd = Math.min(endPage, pageCount);
+    let text = "";
+    for (let i = safeStart; i <= safeEnd; i++) {
+      try {
+        const page = await pdfDocument.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item) => ("str" in item ? item.str : ""))
+          .join(" ");
+        text += pageText + " ";
+      } catch (err) {
+        console.warn(`Error extracting text from page ${i}:`, err);
+      }
+    }
+    return text;
+  } catch (error) {
+    console.error("Error extracting text from page range:", error);
+    return "";
+  }
+}
+
+/**
  * Process a PDF file and extract all available metadata
  */
 export async function processPdfFile(file: File): Promise<{
-  bookInfo: BookInfo;
-  splitPages: Blob[];
+  coverImagePath: string | null;
+  first20PagesText: string;
+  outline: TOCItem[];
+  getTextForPageRange: (start: number, end: number) => Promise<string>;
 }> {
-  try {
-    console.log("Starting file processing:", file.name);
+  // Read the file only once
+  const fileData = await file.arrayBuffer();
+  const coverImageBuffer = fileData.slice(0);
+  const outlineBuffer = fileData.slice(0);
+  const textBuffer = fileData.slice(0);
 
-    // Read the file only once and create copies for different operations
-    const fileData = await file.arrayBuffer();
-    console.log("File loaded into array buffer");
+  // Extract cover image from first page
+  const coverImagePath = await extractCoverImage(coverImageBuffer);
 
-    // Check if the PDF is encrypted before processing
-    const encryptionCheckBuffer = new Uint8Array(fileData.slice(0));
-    const isEncrypted = await isPdfEncrypted(encryptionCheckBuffer);
+  // Extract outline (TOC)
+  const outline = await extractTOCFromPDF(outlineBuffer);
 
-    if (isEncrypted) {
-      console.error("Cannot process encrypted PDF:", file.name);
-      throw new Error(
-        "This PDF is encrypted or password-protected and cannot be processed"
-      );
-    }
+  // Extract text from first 20 pages
+  const first20PagesText = await extractTextFromFirstPages(textBuffer);
 
-    // Create separate copies for each operation to prevent detached ArrayBuffer issues
-    const basicInfoBuffer = new Uint8Array(fileData.slice(0));
-    const coverImageBuffer = new Uint8Array(fileData.slice(0));
-    const textExtractionBuffer = new Uint8Array(fileData.slice(0));
-
-    // Extract metadata from filename
-    const filenameMeta = extractMetadataFromFilename(file.name);
-
-    // Extract basic info (title, author, page count)
-    const basicInfo = await extractBasicInfo(basicInfoBuffer);
-
-    // Use filename-extracted info if PDF metadata is missing
-    if (basicInfo.title === "Untitled" && filenameMeta.title) {
-      basicInfo.title = filenameMeta.title;
-    }
-
-    if (basicInfo.author === "Unknown Author" && filenameMeta.author) {
-      basicInfo.author = filenameMeta.author;
-    }
-
-    // Extract cover image from first page
-    const coverImagePath = await extractCoverImage(coverImageBuffer);
-    console.log(
-      "Cover image extraction result:",
-      coverImagePath ? "Success" : "Failed"
-    );
-
-    // Extract Table of Contents (TOC)
-    const tableOfContents = await extractTOCFromPDF(basicInfoBuffer);
-    console.log("TOC extraction result:", tableOfContents);
-
-    // Extract text from first few pages to find ISBN
-    const text = await extractTextFromFirstPages(textExtractionBuffer);
-    const isbn = extractISBN(text);
-    console.log("ISBN extraction result:", isbn || "Not found");
-
-    // Split the PDF into individual pages
-    console.log("Starting PDF splitting...");
-    const fileUrl = URL.createObjectURL(file);
-
-    // Import the splitPDF function dynamically to avoid circular dependencies
-    const { default: splitPDF } = await import("../utils/splitPDF");
-    const pages = await splitPDF(fileUrl);
-    console.log(`PDF split into ${pages.length} pages`);
-
-    // Clean up the object URL
-    URL.revokeObjectURL(fileUrl);
-
-    // Create and return BookInfo object
-    const info: BookInfo = {
-      title: basicInfo.title,
-      author: basicInfo.author,
-      isbn: isbn || undefined,
-      originalFileName: file.name,
-      pages: basicInfo.pageCount,
-      coverImagePath: coverImagePath || undefined,
-      tableOfContents: tableOfContents,
-    };
-
-    console.log("Book info created:", info);
-    return { bookInfo: info, splitPages: pages };
-  } catch (error) {
-    console.error("Error processing PDF file:", error);
-    throw new Error("Failed to process PDF file");
+  // Helper to extract text from a given page range
+  async function getTextForPageRange(
+    start: number,
+    end: number
+  ): Promise<string> {
+    const buffer = fileData.slice(0);
+    return extractTextFromPageRange(buffer, start, end);
   }
+
+  return {
+    coverImagePath,
+    first20PagesText,
+    outline,
+    getTextForPageRange,
+  };
 }
 
 /**

@@ -1,23 +1,14 @@
 // This file is used to ensure PDF.js worker is properly initialized in Next.js
 
-// This check is important for Next.js since it runs code on both server and client
-if (typeof window !== "undefined") {
-  // We're in the browser, so we can initialize PDF.js
-  import("pdfjs-dist")
-    .then((pdfjs) => {
+export function setupPdfJsWorker(pdfjs) {
+  if (typeof window !== "undefined") {
+    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
       const workerSrc = `${window.location.origin}/pdf.worker.min.js`;
       pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-      console.log(
-        "PDF.js worker initialized from utils/pdfjs-setup.js with path:",
-        workerSrc
-      );
-    })
-    .catch((error) => {
-      console.error(
-        "Failed to initialize PDF.js worker from utils/pdfjs-setup.js:",
-        error
-      );
-    });
+      // Optionally log for debugging
+      // console.log("PDF.js worker initialized from utils/pdfjs-setup.js with path:", workerSrc);
+    }
+  }
 }
 
 export default function isPdfJsSetup() {

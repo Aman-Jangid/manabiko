@@ -1,61 +1,92 @@
 "use client";
 
-import { UploadIcon, XIcon, BookIcon } from "lucide-react";
+import { UploadIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import Image from "next/image";
-import { BookInfo, TOCItem } from "@/utils/BookTypes";
 import { initPdfWorker, processPdfFile } from "@/services/pdfProcessingService";
-import {
-  fetchBookDataByISBN,
-  enrichBookInfoWithOpenLibraryData,
-  shouldFetchCover,
-} from "@/services/openLibraryService";
+
+function EnhanceLoadingIndicator() {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const estimate = elapsed < 60 ? "~30–60s" : ">1 min";
+
+  return (
+    <div className="flex items-center gap-2 text-blue-300 text-sm mb-2">
+      <svg className="animate-spin h-4 w-4 text-blue-400" viewBox="0 0 24 24">
+        <circle
+          className="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+          fill="none"
+        />
+        <path
+          className="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+        />
+      </svg>
+      Enhancing chapters with AI...{" "}
+      <span className="ml-2 text-xs text-blue-200">
+        (est. {estimate}, {elapsed}s elapsed)
+      </span>
+    </div>
+  );
+}
 
 export default function UploadArea() {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [bookInfo, setBookInfo] = useState<BookInfo | null>(null);
-  const [enhancedChapters, setEnhancedChapters] = useState<TOCItem[] | null>(
-    null
-  );
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  type Chapter = { title: string; level?: number };
+  const [enhancedChapters, setEnhancedChapters] = useState<Chapter[] | null>(
+    null
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [tocPageText, setTocPageText] = useState<string | null>(null);
+  const [coverImage, setCoverImage] = useState<string | null>(null);
+  type BookMetadata = {
+    title?: string;
+    author?: string;
+    publisher?: string;
+    year?: string | number;
+    isbn?: string;
+    description?: string;
+    pages?: number;
+  };
+  const [metadata, setMetadata] = useState<BookMetadata | null>(null);
+  const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
+  type TOCOutlineItem = { pageNumber: number; children?: TOCOutlineItem[] };
 
   // Initialize the PDF.js worker
   useEffect(() => {
     initPdfWorker();
   }, []);
 
-  // Enhance TOC with LLM after bookInfo is set
+  // Enhance TOC with LLM after tocPageText is set
   useEffect(() => {
     async function enhanceTOC() {
-      if (
-        bookInfo &&
-        bookInfo.tableOfContents &&
-        bookInfo.tableOfContents.length > 0
-      ) {
+      if (tocPageText && tocPageText.length > 0) {
         setIsEnhancing(true);
         setEnhanceError(null);
         try {
           const res = await fetch("/api/enhance-toc", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(
-              bookInfo.tableOfContents.map(({ title, pageNumber }) => ({
-                title,
-                pageNumber,
-              }))
-            ),
+            body: JSON.stringify({ rawText: tocPageText }),
           });
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
           setEnhancedChapters(data.chapters);
         } catch {
-          setEnhanceError(
-            "Failed to enhance chapters. Showing basic extraction."
-          );
+          setEnhanceError("Failed to enhance chapters. No chapters available.");
           setEnhancedChapters(null);
         } finally {
           setIsEnhancing(false);
@@ -65,7 +96,148 @@ export default function UploadArea() {
       }
     }
     enhanceTOC();
-  }, [bookInfo]);
+  }, [tocPageText]);
+
+  // After upload, extract cover, outline, and metadata (from pages 2 to tocStart-1)
+  useEffect(() => {
+    async function preview() {
+      if (!uploadedFile) return;
+      setIsFetchingMetadata(true);
+      try {
+        const { coverImagePath, outline, getTextForPageRange } =
+          await processPdfFile(uploadedFile);
+        setCoverImage(coverImagePath || null);
+        // Find TOC start page
+        const { min: tocStart } = getTOCPageRange(outline);
+        // Extract raw text from pages 2 to (tocStart-1)
+        let infoText =
+          tocStart > 2 ? await getTextForPageRange(2, tocStart - 1) : "";
+        if (!infoText || infoText.trim().length === 0) {
+          // Fallback: scan first 5 pages for any text
+          infoText = await getTextForPageRange(1, 5);
+        }
+        // Truncate to ~500 words (about 3000 characters) for LLM
+        if (infoText.length > 3000) {
+          infoText = infoText.slice(0, 3000);
+        }
+        // Always log what will be sent to the LLM for metadata extraction
+        console.log("Metadata extraction text sent to LLM:", infoText);
+        // Fetch metadata from LLM
+        let metadata = null;
+        if (infoText && infoText.length > 0) {
+          const res = await fetch("/api/get-info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rawText: infoText }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            metadata = data.info;
+          }
+        }
+        setMetadata(metadata);
+        // Save outline and getTextForPageRange for later use
+        (window as { _manabikoOutline?: TOCOutlineItem[] })._manabikoOutline =
+          outline;
+        (
+          window as {
+            _manabikoGetTextForPageRange?: (
+              start: number,
+              end: number
+            ) => Promise<string>;
+          }
+        )._manabikoGetTextForPageRange = getTextForPageRange;
+      } catch {
+        setEnhanceError("Failed to preview PDF file");
+        setCoverImage(null);
+        setMetadata(null);
+      } finally {
+        setIsFetchingMetadata(false);
+      }
+    }
+    preview();
+  }, [uploadedFile]);
+
+  // Helper to extract a page range from the outline
+  function getTOCPageRange(outline: TOCOutlineItem[]): {
+    min: number;
+    max: number;
+  } {
+    const flatPages = outline.flatMap(function flatten(
+      item: TOCOutlineItem
+    ): number[] {
+      return [item.pageNumber].concat(
+        item.children ? item.children.flatMap(flatten) : []
+      );
+    });
+    const minPage = Math.min(...flatPages);
+    const maxPage = Math.max(...flatPages);
+    return { min: minPage, max: maxPage };
+  }
+
+  // Helper to heuristically find the TOC page range
+  async function findTOCPageRange(
+    getTextForPageRange: (start: number, end: number) => Promise<string>
+  ): Promise<{ start: number; end: number } | null> {
+    const MAX_SCAN_PAGES = 30;
+    // Scan the first MAX_SCAN_PAGES pages
+    for (let i = 1; i <= MAX_SCAN_PAGES; i++) {
+      const text = await getTextForPageRange(i, i);
+      if (/table of contents/i.test(text)) {
+        // Found likely TOC start
+        const tocStart = i;
+        let tocEnd = i;
+        // Try to find the end of the TOC by looking for a page that doesn't look like TOC
+        for (let j = i + 1; j <= Math.min(i + 10, MAX_SCAN_PAGES); j++) {
+          const nextText = await getTextForPageRange(j, j);
+          // Heuristic: if the page contains lots of numbers and dots, or chapter/section patterns, it's likely still TOC
+          if (
+            /\d+\s*\.\s*\w+/.test(nextText) ||
+            /chapter|section|\.{3,}/i.test(nextText)
+          ) {
+            tocEnd = j;
+          } else {
+            break;
+          }
+        }
+        return { start: tocStart, end: tocEnd };
+      }
+    }
+    return null; // Not found
+  }
+
+  // Only process after user confirms: fetch TOC from LLM using TOC page range
+  const handleProcess = async () => {
+    setIsEnhancing(true);
+    setEnhancedChapters(null);
+    try {
+      const outline = (window as { _manabikoOutline?: TOCOutlineItem[] })
+        ._manabikoOutline;
+      const getTextForPageRange = (
+        window as {
+          _manabikoGetTextForPageRange?: (
+            start: number,
+            end: number
+          ) => Promise<string>;
+        }
+      )._manabikoGetTextForPageRange;
+      if (!outline || !getTextForPageRange)
+        throw new Error("Missing outline or text extraction");
+      // Smart TOC detection
+      const tocRange = await findTOCPageRange(getTextForPageRange);
+      if (!tocRange) throw new Error("Could not find TOC in first 30 pages");
+      const tocText = await getTextForPageRange(tocRange.start, tocRange.end);
+      // Log the string that will be sent to the LLM
+      console.log("String to be sent to LLM:", tocText);
+      window.close();
+      // setTocPageText(tocText); // Do not proceed further
+    } catch {
+      setEnhanceError("Failed to process PDF file");
+      setTocPageText(null);
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -104,90 +276,16 @@ export default function UploadArea() {
       return;
     }
 
-    console.log(`File uploaded: ${file.name}, size: ${file.size} bytes`);
     setUploadedFile(file);
-    // Reset split pages and book info when uploading a new file
-    setBookInfo(null);
-  };
-
-  const processFile = async () => {
-    if (!uploadedFile) return;
-
-    try {
-      setIsProcessing(true);
-
-      // Process the PDF file using the service
-      const { bookInfo: info } = await processPdfFile(uploadedFile);
-
-      // Update state with the processed data
-      setBookInfo(info);
-
-      // Auto-fetch additional data if ISBN is available and we need more data
-      if (
-        info.isbn &&
-        // Fetch if we're missing critical info or cover
-        (info.title === "Untitled" ||
-          info.author === "Unknown Author" ||
-          !info.description ||
-          shouldFetchCover(info))
-      ) {
-        console.log(
-          "Auto-fetching OpenLibrary data to supplement local extraction"
-        );
-        fetchExtraBookData(info.isbn);
-      }
-    } catch (error) {
-      console.error("Error processing file:", error);
-      alert("Failed to process PDF file");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const fetchExtraBookData = async (isbn: string) => {
-    try {
-      // Use the OpenLibrary service to fetch data
-      const olData = await fetchBookDataByISBN(isbn);
-
-      if (olData) {
-        // Update book metadata with the fetched data if original data was incomplete
-        if (bookInfo) {
-          const updatedInfo = enrichBookInfoWithOpenLibraryData(
-            bookInfo,
-            olData
-          );
-          setBookInfo(updatedInfo);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching book data:", error);
-    }
   };
 
   const removeFile = () => {
     setUploadedFile(null);
-    setBookInfo(null);
   };
 
   const handleManualSelect = () => {
     fileInputRef.current?.click();
   };
-
-  // Helper to filter out only true extras and flatten TOC to top-level chapters
-  function filterChapters(items: TOCItem[]): TOCItem[] {
-    return items.filter((item) => {
-      if (item.level !== 0 || item.title.length <= 2) return false;
-      // Normalize: remove all leading whitespace, non-breaking spaces, and '&#160;' entities, then lowercase
-      const normalized = item.title
-        .replace(/^(?:\s|\u00A0|&#160;)+/gu, "")
-        .replace(/&#160;/g, "")
-        .trim()
-        .toLowerCase();
-      // Only include if it looks like a chapter (e.g., starts with 'chapter' or a number + dot/space)
-      if (/^(chapter\s*\d+|\d+\.|\d+\s)/.test(normalized)) return true;
-      return false;
-    });
-  }
 
   return (
     <div className="grid grid-rows-[auto_1fr_auto] self-center h-min justify-items-center gap-6 text-white z-10">
@@ -224,79 +322,105 @@ export default function UploadArea() {
           </p>
         </>
       ) : (
-        <div className="max-w-3xl w-full border-2 rounded-lg flex flex-col items-center p-8 bg-blue-950/10 border-blue-400">
-          <div className="flex flex-col items-center gap-4 w-full">
+        <div
+          className="max-w-3xl w-full border-2 rounded-lg flex flex-col items-center bg-blue-950/10 border-blue-400"
+          style={{
+            minWidth: "clamp(260px,40vw,420px)",
+            padding: "2rem 1.5rem",
+          }}
+        >
+          <div className="flex flex-col items-center gap-6 w-full">
             <p className="text-center font-medium">{uploadedFile.name}</p>
-
-            {bookInfo ? (
-              <div className="w-full flex flex-col items-center gap-8">
-                {/* Book cover and info */}
-                <div className="flex flex-col md:flex-row gap-6 w-full items-center justify-center">
-                  {/* Book cover */}
-                  {bookInfo.coverImagePath ? (
-                    <div className="w-32 h-40 rounded overflow-hidden relative">
-                      <Image
-                        src={bookInfo.coverImagePath}
-                        alt="Book cover"
-                        fill
-                        sizes="128px"
-                        style={{ objectFit: "cover" }}
-                        priority
-                      />
-                    </div>
-                  ) : bookInfo.externalCoverUrl ? (
-                    <div className="w-32 h-40 rounded overflow-hidden relative">
-                      <Image
-                        src={bookInfo.externalCoverUrl}
-                        alt="Book cover"
-                        fill
-                        sizes="128px"
-                        style={{ objectFit: "cover" }}
-                        priority
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-32 h-40 bg-gray-800 rounded flex items-center justify-center">
-                      <BookIcon size={48} className="text-gray-600" />
-                    </div>
-                  )}
-                  {/* Book info */}
-                  <div className="flex-1 flex flex-col gap-2 items-center md:items-start">
-                    <h2 className="text-lg font-medium">{bookInfo.title}</h2>
-                    <p className="text-gray-400">{bookInfo.author}</p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      {bookInfo.pages} pages
-                    </p>
-                    {bookInfo.isbn && (
-                      <p className="text-sm text-gray-500">
-                        ISBN: {bookInfo.isbn}
-                      </p>
+            <div className="flex flex-row w-full items-start gap-8 mb-6">
+              {coverImage && (
+                <div className="w-36 h-50 rounded overflow-hidden relative">
+                  <img
+                    src={coverImage}
+                    alt="Book cover"
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+              )}
+              <div className="flex-1 space-y-2">
+                {isFetchingMetadata && (
+                  <div className="text-blue-300">Fetching metadata...</div>
+                )}
+                {metadata && !isFetchingMetadata && (
+                  <div>
+                    {metadata.title && (
+                      <div className="text-lg font-semibold">
+                        {metadata.title}
+                      </div>
                     )}
-                    {bookInfo.description && (
-                      <div className="mt-1 max-w-xs">
-                        <h3 className="text-md font-medium mb-1">
-                          Description
-                        </h3>
-                        <p className="text-sm text-gray-300 max-h-24 overflow-y-auto">
-                          {bookInfo.description}
-                        </p>
+                    {metadata.author && (
+                      <div className="text-sm text-gray-400">
+                        {metadata.author}
+                      </div>
+                    )}
+                    {metadata.publisher && (
+                      <div className="text-sm text-gray-400">
+                        {metadata.publisher}
+                      </div>
+                    )}
+                    {metadata.year && (
+                      <div className="text-sm text-gray-400">
+                        {metadata.year}
+                      </div>
+                    )}
+                    {metadata.isbn && (
+                      <div className="text-sm text-gray-400">
+                        ISBN: {metadata.isbn}
+                      </div>
+                    )}
+                    {metadata.pages && (
+                      <div className="text-xs text-gray-500">
+                        {metadata.pages} pages
+                      </div>
+                    )}
+                    {metadata.description && (
+                      <div className="text-xs text-gray-300 mt-2">
+                        {metadata.description.length > 200
+                          ? metadata.description.slice(0, 200) + "..."
+                          : metadata.description}
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* Main chapters as compact pill boxes, only top-level (level 0) */}
-                <div className="w-full flex flex-col items-start mt-4">
-                  {isEnhancing && (
-                    <div className="text-blue-300 text-sm mb-2">
-                      Enhancing chapters with AI...
-                    </div>
-                  )}
-                  {enhanceError && (
-                    <div className="text-red-400 text-xs mb-2">
-                      {enhanceError}
-                    </div>
-                  )}
+                )}
+              </div>
+            </div>
+            {/* Action buttons: Process/Cancel, bottom right */}
+            <div className="self-end bottom-4 flex flex-row gap-6 z-50 mt-4">
+              {!enhancedChapters || enhancedChapters.length === 0 ? (
+                <button
+                  className="px-6 py-2 border-2 border-blue-400 rounded-full hover:bg-blue-400/30 transition-all text-base font-semibold text-blue-300 flex items-center gap-2"
+                  onClick={handleProcess}
+                  disabled={isEnhancing}
+                >
+                  {isEnhancing ? "Processing..." : "Process File"}
+                </button>
+              ) : (
+                <button
+                  className="px-6 py-2 border-2 border-green-400 rounded-full hover:bg-green-400/30 transition-all text-base font-semibold text-green-300"
+                  onClick={() => alert("Add to library logic goes here!")}
+                >
+                  Add to Library
+                </button>
+              )}
+              <button
+                className="px-6 py-2 border-2 border-red-400 rounded-full hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
+                onClick={removeFile}
+              >
+                Cancel
+              </button>
+            </div>
+            {/* Show extracted chapters after processing */}
+            <div className="w-full flex flex-col items-start mt-4">
+              {isEnhancing && <EnhanceLoadingIndicator />}
+              {enhanceError && (
+                <div className="text-red-400 text-xs mb-2">{enhanceError}</div>
+              )}
+              {enhancedChapters && enhancedChapters.length > 0 && (
+                <>
                   <h3 className="text-md font-medium mb-2 text-left">
                     Extracted Chapters
                   </h3>
@@ -304,12 +428,9 @@ export default function UploadArea() {
                     className="w-full mx-auto flex flex-col gap-2 overflow-y-auto items-start"
                     style={{ maxHeight: "180px" }}
                   >
-                    {(enhancedChapters ||
-                      (bookInfo && bookInfo.tableOfContents)) &&
-                      (
-                        enhancedChapters ??
-                        filterChapters(bookInfo!.tableOfContents!)
-                      ).map((item, index) => (
+                    {enhancedChapters
+                      .filter((item) => item.level === 0)
+                      .map((item, index) => (
                         <div
                           key={index}
                           className="inline-block border border-blue-400 bg-blue-900/40 text-white text-xs font-medium rounded-full px-4 py-1 shadow-sm whitespace-nowrap text-center"
@@ -323,42 +444,9 @@ export default function UploadArea() {
                         </div>
                       ))}
                   </div>
-                </div>
-
-                {/* Action buttons: Add to Library and Cancel */}
-                <div className="w-full flex flex-row justify-center gap-6 mt-8">
-                  <button
-                    className="px-6 py-2 border-2 border-green-400 rounded-full hover:bg-green-400/30 transition-all text-base font-semibold text-green-300"
-                    onClick={() => alert("Add to library logic goes here!")}
-                  >
-                    Add to Library
-                  </button>
-                  <button
-                    className="px-6 py-2 border-2 border-red-400 rounded-full hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
-                    onClick={removeFile}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-4">
-                <button
-                  className="px-4 py-2 border-2 border-blue-600 rounded-md hover:bg-blue-600/30 hover:border-dashed transition-all flex items-center gap-2"
-                  onClick={processFile}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? "Processing..." : "Process File"}
-                </button>
-                <button
-                  className="px-4 py-2 border-2 border-red-400 rounded-md hover:bg-red-400/30 hover:border-dashed transition-all"
-                  onClick={removeFile}
-                  disabled={isProcessing}
-                >
-                  <XIcon />
-                </button>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
