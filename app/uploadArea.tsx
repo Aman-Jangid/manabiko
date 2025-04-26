@@ -321,17 +321,92 @@ export default function UploadArea() {
             Maximum size: 25 MB, Format: PDF
           </p>
         </>
-      ) : (
+      ) : isFetchingMetadata ? (
+        <div className="flex flex-col items-center justify-center min-h-[300px] w-full">
+          <div className="flex flex-row justify-center items-end gap-2 mb-6 mt-8">
+            <span className="animate-bounce" style={{ animationDelay: "0ms" }}>
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+              >
+                <circle cx="10" cy="10" r="8" />
+              </svg>
+            </span>
+            <span
+              className="animate-bounce"
+              style={{ animationDelay: "100ms" }}
+            >
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+              >
+                <circle cx="10" cy="10" r="8" />
+              </svg>
+            </span>
+            <span
+              className="animate-bounce"
+              style={{ animationDelay: "200ms" }}
+            >
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+              >
+                <circle cx="10" cy="10" r="8" />
+              </svg>
+            </span>
+            <span
+              className="animate-bounce"
+              style={{ animationDelay: "300ms" }}
+            >
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+              >
+                <circle cx="10" cy="10" r="8" />
+              </svg>
+            </span>
+            <span
+              className="animate-bounce"
+              style={{ animationDelay: "400ms" }}
+            >
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+              >
+                <circle cx="10" cy="10" r="8" />
+              </svg>
+            </span>
+          </div>
+          <div className="text-lg text-white font-light">
+            Extracting Book Info
+          </div>
+        </div>
+      ) : metadata ? (
         <div
-          className="max-w-3xl w-full border-2 rounded-lg flex flex-col items-center bg-blue-950/10 border-blue-400"
+          className="max-w-3xl w-full border-2 rounded-lg flex flex-col items-center  bg-blue-950/10 border-blue-400"
           style={{
-            minWidth: "clamp(260px,40vw,420px)",
+            minWidth: "clamp(260px,40vw,600px)",
             padding: "2rem 1.5rem",
           }}
         >
-          <div className="flex flex-col items-center gap-6 w-full">
+          <div className="flex flex-col items-center gap-6 w-full ">
             <p className="text-center font-medium">{uploadedFile.name}</p>
-            <div className="flex flex-row w-full items-start gap-8 mb-6">
+            <div className="flex flex-row w-full items-start gap-8 mb-6 ">
               {coverImage && (
                 <div className="w-36 h-50 rounded overflow-hidden relative">
                   <img
@@ -389,10 +464,10 @@ export default function UploadArea() {
               </div>
             </div>
             {/* Action buttons: Process/Cancel, bottom right */}
-            <div className="self-end bottom-4 flex flex-row gap-6 z-50 mt-4">
+            <div className="self-end flex flex-row gap-6 -mb-12 z-50 ">
               {!enhancedChapters || enhancedChapters.length === 0 ? (
                 <button
-                  className="px-6 py-2 border-2 border-blue-400 rounded-full hover:bg-blue-400/30 transition-all text-base font-semibold text-blue-300 flex items-center gap-2"
+                  className="px-6 py-2 border-2 border-blue-400 rounded-xl hover:bg-blue-400/30 transition-all text-base font-semibold text-blue-300 flex items-center gap-2"
                   onClick={handleProcess}
                   disabled={isEnhancing}
                 >
@@ -400,14 +475,14 @@ export default function UploadArea() {
                 </button>
               ) : (
                 <button
-                  className="px-6 py-2 border-2 border-green-400 rounded-full hover:bg-green-400/30 transition-all text-base font-semibold text-green-300"
+                  className="px-6 py-2 border-2 border-green-400 rounded-xl hover:bg-green-400/30 transition-all text-base font-semibold text-green-300"
                   onClick={() => alert("Add to library logic goes here!")}
                 >
                   Add to Library
                 </button>
               )}
               <button
-                className="px-6 py-2 border-2 border-red-400 rounded-full hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
+                className="px-6 py-2 border-2 border-red-400 rounded-xl hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
                 onClick={removeFile}
               >
                 Cancel
@@ -449,7 +524,7 @@ export default function UploadArea() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
