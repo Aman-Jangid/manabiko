@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { initPdfWorker, processPdfFile } from "@/services/pdfProcessingService";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 function EnhanceLoadingIndicator() {
   const [elapsed, setElapsed] = useState(0);
@@ -89,6 +90,7 @@ export default function UploadArea() {
   const [expandedChapters, setExpandedChapters] = useState<
     Record<string, boolean>
   >({});
+  const router = useRouter();
 
   // Initialize the PDF.js worker
   useEffect(() => {
@@ -355,6 +357,37 @@ export default function UploadArea() {
     setEnhancedChapters(null);
   }, [uploadedFile]);
 
+  // Add to Library handler
+  const addToLibrary = () => {
+    if (!metadata || !uploadedFile || !enhancedChapters) return;
+    const newBook = {
+      id: Date.now().toString(),
+      title: metadata.title || uploadedFile.name,
+      author: metadata.author || "Unknown",
+      coverImage,
+      lastRead: "",
+      progress: 0,
+      fileName: uploadedFile.name,
+      toc: enhancedChapters,
+      metadata,
+    };
+    // Get current library
+    let library = [];
+    if (typeof window !== "undefined") {
+      const libStr = localStorage.getItem("manabikoLibrary");
+      if (libStr) {
+        try {
+          library = JSON.parse(libStr);
+        } catch {}
+      }
+      // Add new book and save
+      library.push(newBook);
+      localStorage.setItem("manabikoLibrary", JSON.stringify(library));
+      // Optionally, navigate to library page
+      router.push("/")
+    }
+  };
+
   return (
     <div className="grid grid-rows-[auto_1fr_auto] self-center h-min justify-items-center gap-6 text-white z-10">
       {!uploadedFile ? (
@@ -569,7 +602,7 @@ export default function UploadArea() {
                     {enhancedChapters && enhancedChapters.length > 0 && (
                       <button
                         className="px-6 py-2 border-2 border-green-400 rounded-xl hover:bg-green-400/30 transition-all text-base font-semibold text-green-300"
-                        onClick={() => alert("Add to library logic goes here!")}
+                        onClick={addToLibrary}
                       >
                         Add to Library
                       </button>
