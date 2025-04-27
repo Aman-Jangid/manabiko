@@ -9,11 +9,13 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
   try {
-    const { toc, rawText } = req.body;
+    const { rawText } = req.body;
+    console.log("[enhance-toc] Received rawText:", rawText);
     if (!rawText || typeof rawText !== "string") {
       return res.status(400).json({ error: "rawText is required" });
     }
-    const enhanced = await enhanceTOCWithLLM(Array.isArray(toc) ? toc : []);
+    // Pass the compact string directly to the LLM enhancer
+    const enhanced = await enhanceTOCWithLLM(rawText);
     return res.status(200).json({ chapters: enhanced });
   } catch (error: unknown) {
     console.error("/api/enhance-toc error:", error);

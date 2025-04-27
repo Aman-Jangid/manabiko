@@ -10,12 +10,44 @@ interface OpenLibraryData {
   publishers?: string[];
 }
 
+// Simple in-memory cache for OpenLibrary responses
+const isbnCache: Map<
+  string,
+  { data: OpenLibraryData | null; timestamp: number }
+> = new Map();
+const titleAuthorCache: Map<
+  string,
+  { data: OpenLibraryData | null; timestamp: number }
+> = new Map();
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+function getCache(
+  cache: Map<string, { data: OpenLibraryData | null; timestamp: number }>,
+  key: string
+): OpenLibraryData | null {
+  const entry = cache.get(key);
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+    return entry.data;
+  }
+  cache.delete(key);
+  return null;
+}
+function setCache(
+  cache: Map<string, { data: OpenLibraryData | null; timestamp: number }>,
+  key: string,
+  data: OpenLibraryData | null
+) {
+  cache.set(key, { data, timestamp: Date.now() });
+}
+
 /**
  * Fetches additional book data from OpenLibrary API using ISBN
  */
 export async function fetchBookDataByISBN(
   isbn: string
 ): Promise<OpenLibraryData | null> {
+  const cached = getCache(isbnCache, isbn);
+  if (cached) return cached;
   try {
     // Use the Open Library API to fetch book data by ISBN
     const response = await fetch(
@@ -32,6 +64,7 @@ export async function fetchBookDataByISBN(
         authors: bookData.authors,
         publish_date: bookData.publish_date,
         description: bookData.notes || bookData.excerpts?.[0]?.text,
+        publishers: bookData.publishers?.map((p: { name: string }) => p.name),
       };
 
       // Get cover if available
@@ -39,6 +72,7 @@ export async function fetchBookDataByISBN(
         olData.cover_url = bookData.cover.medium;
       }
 
+      setCache(isbnCache, isbn, olData);
       return olData;
     } else {
       console.log("No book data found in Open Library for ISBN:", isbn);
@@ -128,6 +162,9 @@ export async function fetchBookDataByTitleAuthor(
   author?: string
 ): Promise<OpenLibraryData | null> {
   if (!title && !author) return null;
+  const key = `${title || ""}|${author || ""}`;
+  const cached = getCache(titleAuthorCache, key);
+  if (cached) return cached;
   try {
     const params = new URLSearchParams();
     if (title) params.append("title", title);
@@ -148,10 +185,12 @@ export async function fetchBookDataByTitleAuthor(
           ? String(doc.first_publish_year)
           : undefined,
         description: doc.subtitle || undefined,
+        publishers: doc.publisher,
       };
       if (doc.cover_i) {
         olData.cover_url = `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`;
       }
+      setCache(titleAuthorCache, key, olData);
       return olData;
     }
     return null;

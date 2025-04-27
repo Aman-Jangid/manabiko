@@ -1,8 +1,10 @@
 "use client";
 
 import { UploadIcon } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { initPdfWorker, processPdfFile } from "@/services/pdfProcessingService";
+import Image from "next/image";
 
 function EnhanceLoadingIndicator() {
   const [elapsed, setElapsed] = useState(0);
@@ -15,29 +17,50 @@ function EnhanceLoadingIndicator() {
   const estimate = elapsed < 60 ? "~30–60s" : ">1 min";
 
   return (
-    <div className="flex items-center gap-2 text-blue-300 text-sm mb-2">
-      <svg className="animate-spin h-4 w-4 text-blue-400" viewBox="0 0 24 24">
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-          fill="none"
-        />
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-        />
-      </svg>
-      Enhancing chapters with AI...{" "}
+    <div className="flex flex-col items-center gap-0 text-blue-300 text-sm mb-2">
+      <div className="flex items-center gap-2">
+        <svg className="animate-spin h-6 w-6 text-blue-400" viewBox="0 0 24 24">
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+            fill="none"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+          />
+        </svg>
+        Extracting chapters using AI...{" "}
+      </div>
       <span className="ml-2 text-xs text-blue-200">
         (est. {estimate}, {elapsed}s elapsed)
       </span>
     </div>
   );
+}
+
+// Converts a TOCOutlineItem[] to a compact string with abbreviated keys
+type TOCOutlineItem = {
+  pageNumber: number;
+  children?: TOCOutlineItem[];
+  title?: string;
+};
+function outlineToCompactString(outline: TOCOutlineItem[]): string {
+  function itemToString(item: TOCOutlineItem): string {
+    const t = item.title || "";
+    const p = item.pageNumber;
+    const c =
+      item.children && item.children.length > 0
+        ? `,c:[${item.children.map(itemToString).join(";")}]`
+        : "";
+    return `t:${t},p:${p}${c}`;
+  }
+  return outline.map(itemToString).join(";\n");
 }
 
 export default function UploadArea() {
@@ -63,7 +86,9 @@ export default function UploadArea() {
   };
   const [metadata, setMetadata] = useState<BookMetadata | null>(null);
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
-  type TOCOutlineItem = { pageNumber: number; children?: TOCOutlineItem[] };
+  const [expandedChapters, setExpandedChapters] = useState<
+    Record<string, boolean>
+  >({});
 
   // Initialize the PDF.js worker
   useEffect(() => {
@@ -175,37 +200,6 @@ export default function UploadArea() {
     return { min: minPage, max: maxPage };
   }
 
-  // Helper to heuristically find the TOC page range
-  async function findTOCPageRange(
-    getTextForPageRange: (start: number, end: number) => Promise<string>
-  ): Promise<{ start: number; end: number } | null> {
-    const MAX_SCAN_PAGES = 30;
-    // Scan the first MAX_SCAN_PAGES pages
-    for (let i = 1; i <= MAX_SCAN_PAGES; i++) {
-      const text = await getTextForPageRange(i, i);
-      if (/table of contents/i.test(text)) {
-        // Found likely TOC start
-        const tocStart = i;
-        let tocEnd = i;
-        // Try to find the end of the TOC by looking for a page that doesn't look like TOC
-        for (let j = i + 1; j <= Math.min(i + 10, MAX_SCAN_PAGES); j++) {
-          const nextText = await getTextForPageRange(j, j);
-          // Heuristic: if the page contains lots of numbers and dots, or chapter/section patterns, it's likely still TOC
-          if (
-            /\d+\s*\.\s*\w+/.test(nextText) ||
-            /chapter|section|\.{3,}/i.test(nextText)
-          ) {
-            tocEnd = j;
-          } else {
-            break;
-          }
-        }
-        return { start: tocStart, end: tocEnd };
-      }
-    }
-    return null; // Not found
-  }
-
   // Only process after user confirms: fetch TOC from LLM using TOC page range
   const handleProcess = async () => {
     setIsEnhancing(true);
@@ -213,24 +207,20 @@ export default function UploadArea() {
     try {
       const outline = (window as { _manabikoOutline?: TOCOutlineItem[] })
         ._manabikoOutline;
-      const getTextForPageRange = (
-        window as {
-          _manabikoGetTextForPageRange?: (
-            start: number,
-            end: number
-          ) => Promise<string>;
-        }
-      )._manabikoGetTextForPageRange;
-      if (!outline || !getTextForPageRange)
-        throw new Error("Missing outline or text extraction");
-      // Smart TOC detection
-      const tocRange = await findTOCPageRange(getTextForPageRange);
-      if (!tocRange) throw new Error("Could not find TOC in first 30 pages");
-      const tocText = await getTextForPageRange(tocRange.start, tocRange.end);
+      if (!outline) throw new Error("Missing outline");
+      // Convert outline to compact string
+      const compactOutline = outlineToCompactString(outline);
       // Log the string that will be sent to the LLM
-      console.log("String to be sent to LLM:", tocText);
-      window.close();
-      // setTocPageText(tocText); // Do not proceed further
+      console.log("TOC outline string to be sent to LLM:", compactOutline);
+      // Send to LLM for enhancement
+      const res = await fetch("/api/enhance-toc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText: compactOutline }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setEnhancedChapters(data.chapters);
     } catch {
       setEnhanceError("Failed to process PDF file");
       setTocPageText(null);
@@ -286,6 +276,84 @@ export default function UploadArea() {
   const handleManualSelect = () => {
     fileInputRef.current?.click();
   };
+
+  // Recursively render chapters and their children/topics
+  type EnhancedChapter = {
+    title?: string;
+    c?: string;
+    p?: number | string;
+    t?: EnhancedChapter[];
+    topics?: EnhancedChapter[];
+    children?: EnhancedChapter[];
+  };
+
+  function toggleChapter(key: string) {
+    setExpandedChapters((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  }
+
+  function getSubChapters(item: EnhancedChapter) {
+    return item.t || item.topics || item.children || [];
+  }
+
+  function renderChapters(
+    chapters: EnhancedChapter[],
+    level = 0,
+    parentKey = ""
+  ) {
+    return chapters.map((item, idx) => {
+      const key = parentKey + (item.title || item.c || "") + idx;
+      const subChapters = getSubChapters(item);
+      const hasChildren = subChapters.length > 0;
+      const isExpanded = expandedChapters[key] || false;
+
+      return (
+        <div key={key} style={{ marginLeft: level * 16, marginBottom: 4 }}>
+          <div
+            className="flex items-center rounded-lg px-2 hover:bg-blend-darken py-1 cursor-pointer"
+            onClick={() => hasChildren && toggleChapter(key)}
+            style={{
+              minHeight: 30,
+              userSelect: "none",
+              fontWeight: 500,
+              fontSize: "1rem",
+
+              ...(hasChildren ? { background: "#3345" } : {}),
+            }}
+          >
+            {hasChildren ? (
+              isExpanded ? (
+                <ChevronDown size={18} className="mr-2 text-gray-300" />
+              ) : (
+                <ChevronRight size={18} className="mr-2 text-gray-300" />
+              )
+            ) : (
+              <span
+                style={{
+                  width: 18,
+                  display: "inline-block",
+                }}
+              />
+            )}
+            <span className="text-white">{item.title || item.c}</span>
+            {item.p && (
+              <span className="text-xs text-blue-300 ml-2">p.{item.p}</span>
+            )}
+          </div>
+          {hasChildren && isExpanded && (
+            <div>{renderChapters(subChapters, level + 1, key)}</div>
+          )}
+        </div>
+      );
+    });
+  }
+
+  // Reset chapters when a new file is uploaded
+  useEffect(() => {
+    setEnhancedChapters(null);
+  }, [uploadedFile]);
 
   return (
     <div className="grid grid-rows-[auto_1fr_auto] self-center h-min justify-items-center gap-6 text-white z-10">
@@ -409,10 +477,13 @@ export default function UploadArea() {
             <div className="flex flex-row w-full items-start gap-8 mb-6 ">
               {coverImage && (
                 <div className="w-36 h-50 rounded overflow-hidden relative">
-                  <img
+                  <Image
                     src={coverImage}
                     alt="Book cover"
+                    width={144}
+                    height={200}
                     className="object-cover w-full h-full"
+                    sizes="144px"
                   />
                 </div>
               )}
@@ -463,61 +534,65 @@ export default function UploadArea() {
                 )}
               </div>
             </div>
-            {/* Action buttons: Process/Cancel, bottom right */}
-            <div className="self-end flex flex-row gap-6 -mb-12 z-50 ">
-              {!enhancedChapters || enhancedChapters.length === 0 ? (
-                <button
-                  className="px-6 py-2 border-2 border-blue-400 rounded-xl hover:bg-blue-400/30 transition-all text-base font-semibold text-blue-300 flex items-center gap-2"
-                  onClick={handleProcess}
-                  disabled={isEnhancing}
-                >
-                  {isEnhancing ? "Processing..." : "Process File"}
-                </button>
-              ) : (
-                <button
-                  className="px-6 py-2 border-2 border-green-400 rounded-xl hover:bg-green-400/30 transition-all text-base font-semibold text-green-300"
-                  onClick={() => alert("Add to library logic goes here!")}
-                >
-                  Add to Library
-                </button>
-              )}
-              <button
-                className="px-6 py-2 border-2 border-red-400 rounded-xl hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
-                onClick={removeFile}
-              >
-                Cancel
-              </button>
-            </div>
+
             {/* Show extracted chapters after processing */}
             <div className="w-full flex flex-col items-start mt-4">
-              {isEnhancing && <EnhanceLoadingIndicator />}
-              {enhanceError && (
-                <div className="text-red-400 text-xs mb-2">{enhanceError}</div>
-              )}
+              {/* Action buttons below loading indicator and error */}
+              <div className="self-end flex flex-row gap-6 z-50 mb-2">
+                <div className="flex flex-col items-start self-center  h-10 mr-4">
+                  {isEnhancing && <EnhanceLoadingIndicator />}
+                  {enhanceError && (
+                    <div className="text-red-400 text-xs mb-2">
+                      {enhanceError}
+                    </div>
+                  )}
+                </div>
+
+                {!isEnhancing && !enhancedChapters && (
+                  <button
+                    className="px-6 py-2 border-2 border-blue-400 rounded-xl hover:bg-blue-400/30 transition-all text-base font-semibold text-blue-300 flex items-center gap-2"
+                    onClick={handleProcess}
+                    disabled={isEnhancing}
+                  >
+                    Extract contents
+                  </button>
+                )}
+                {isEnhancing ? (
+                  <button
+                    className="px-6 py-2 border-2 border-red-400 rounded-xl hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
+                    onClick={removeFile}
+                  >
+                    Cancel
+                  </button>
+                ) : (
+                  <>
+                    {enhancedChapters && enhancedChapters.length > 0 && (
+                      <button
+                        className="px-6 py-2 border-2 border-green-400 rounded-xl hover:bg-green-400/30 transition-all text-base font-semibold text-green-300"
+                        onClick={() => alert("Add to library logic goes here!")}
+                      >
+                        Add to Library
+                      </button>
+                    )}
+                    <button
+                      className="px-6 py-2 border-2 border-red-400 rounded-xl hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
+                      onClick={removeFile}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
+              </div>
               {enhancedChapters && enhancedChapters.length > 0 && (
                 <>
-                  <h3 className="text-md font-medium mb-2 text-left">
-                    Extracted Chapters
+                  <h3 className="text-md font-medium mb-2 text-left mt-8">
+                    Extracted Table of Contents
                   </h3>
                   <div
-                    className="w-full mx-auto flex flex-col gap-2 overflow-y-auto items-start"
-                    style={{ maxHeight: "180px" }}
+                    className="w-full mx-auto overflow-y-auto items-start rounded "
+                    style={{ maxHeight: "220px" }}
                   >
-                    {enhancedChapters
-                      .filter((item) => item.level === 0)
-                      .map((item, index) => (
-                        <div
-                          key={index}
-                          className="inline-block border border-blue-400 bg-blue-900/40 text-white text-xs font-medium rounded-full px-4 py-1 shadow-sm whitespace-nowrap text-center"
-                          style={{
-                            minWidth: "60px",
-                            maxWidth: "90%",
-                            margin: 0,
-                          }}
-                        >
-                          {item.title}
-                        </div>
-                      ))}
+                    {renderChapters(enhancedChapters)}
                   </div>
                 </>
               )}
