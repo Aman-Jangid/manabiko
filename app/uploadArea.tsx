@@ -1,11 +1,11 @@
 "use client";
 
-import { UploadIcon } from "lucide-react";
+import { UploadIcon, XIcon } from "lucide-react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { initPdfWorker, processPdfFile } from "@/services/pdfProcessingService";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useLibrary } from "./hooks/useLibrary";
 
 function EnhanceLoadingIndicator() {
   const [elapsed, setElapsed] = useState(0);
@@ -18,9 +18,12 @@ function EnhanceLoadingIndicator() {
   const estimate = elapsed < 60 ? "~30–60s" : ">1 min";
 
   return (
-    <div className="flex flex-col items-center gap-0 text-blue-300 text-sm mb-2">
+    <div className="flex flex-col items-center gap-0 text-[var(--color-accent)] text-sm mb-2">
       <div className="flex items-center gap-2">
-        <svg className="animate-spin h-6 w-6 text-blue-400" viewBox="0 0 24 24">
+        <svg
+          className="animate-spin h-6 w-6 text-[var(--color-accent)]/80"
+          viewBox="0 0 24 24"
+        >
           <circle
             className="opacity-25"
             cx="12"
@@ -38,7 +41,7 @@ function EnhanceLoadingIndicator() {
         </svg>
         Extracting chapters using AI...{" "}
       </div>
-      <span className="ml-2 text-xs text-blue-200">
+      <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
         (est. {estimate}, {elapsed}s elapsed)
       </span>
     </div>
@@ -64,7 +67,13 @@ function outlineToCompactString(outline: TOCOutlineItem[]): string {
   return outline.map(itemToString).join(";\n");
 }
 
-export default function UploadArea() {
+export default function UploadArea({
+  close = () => {},
+  showClose = false,
+}: {
+  close?: () => void;
+  showClose?: boolean;
+}) {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -90,7 +99,18 @@ export default function UploadArea() {
   const [expandedChapters, setExpandedChapters] = useState<
     Record<string, boolean>
   >({});
-  const router = useRouter();
+  const { addBook, books } = useLibrary();
+
+  // Responsive: detect mobile
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // Tailwind's sm breakpoint
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Initialize the PDF.js worker
   useEffect(() => {
@@ -322,14 +342,14 @@ export default function UploadArea() {
               fontWeight: 500,
               fontSize: "1rem",
 
-              ...(hasChildren ? { background: "#3345" } : {}),
+              ...(hasChildren ? { background: "var(--color-surface)" } : {}),
             }}
           >
             {hasChildren ? (
               isExpanded ? (
-                <ChevronDown size={18} className="mr-2 text-gray-300" />
+                <ChevronDown size={18} className="mr-2 text-gray-500" />
               ) : (
-                <ChevronRight size={18} className="mr-2 text-gray-300" />
+                <ChevronRight size={18} className="mr-2 text-gray-500" />
               )
             ) : (
               <span
@@ -339,9 +359,11 @@ export default function UploadArea() {
                 }}
               />
             )}
-            <span className="text-white">{item.title || item.c}</span>
+            <span className="text-[var(--color-text-secondary)]">
+              {item.title || item.c}
+            </span>
             {item.p && (
-              <span className="text-xs text-blue-300 ml-2">p.{item.p}</span>
+              <span className="text-xs text-blue-500 ml-2">p.{item.p}</span>
             )}
           </div>
           {hasChildren && isExpanded && (
@@ -371,268 +393,324 @@ export default function UploadArea() {
       toc: enhancedChapters,
       metadata,
     };
-    // Get current library
-    let library = [];
-    if (typeof window !== "undefined") {
-      const libStr = localStorage.getItem("manabikoLibrary");
-      if (libStr) {
-        try {
-          library = JSON.parse(libStr);
-        } catch {}
-      }
-      // Add new book and save
-      library.push(newBook);
-      localStorage.setItem("manabikoLibrary", JSON.stringify(library));
-      // Optionally, navigate to library page
-      router.push("/")
+    // Check for duplicates
+    const duplicate = books.find(
+      (book: { fileName: string }) => book.fileName === newBook.fileName
+    );
+    if (duplicate) {
+      alert("Book already exists in library");
+      close();
+      return;
     }
+    addBook(newBook);
+    close();
   };
 
   return (
-    <div className="grid grid-rows-[auto_1fr_auto] self-center h-min justify-items-center gap-6 text-white z-10">
-      {!uploadedFile ? (
-        <>
-          <div
-            className={`relative max-w-2xl w-[38rem] aspect-[16/9] border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-8 transition-colors hover:bg-blue-400/2 ${
-              dragActive ? "border-blue-400 bg-blue-950/20" : "border-gray-600"
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            onClick={handleManualSelect}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf"
-              className="hidden"
-              onChange={handleFileInput}
-            />
-            <div className="flex flex-col items-center gap-2 text-gray-300">
-              <UploadIcon size={28} />
-              <p className="text-center font-light">Drop file</p>
-              <p className="text-center text-sm font-light opacity-80">or</p>
-              <p className="text-center font-light cursor-pointer">
-                Select Manually
-              </p>
+    <>
+      <div className="w-full max-w-2xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl mx-auto p-4 sm:p-6 md:p-8 grid grid-rows-[auto_1fr_auto] self-center h-min justify-items-center gap-6 text-white z-10 relative">
+        {showClose && !uploadedFile && (
+          <div className="absolute -top-10 right-[12.4%] z-50">
+            <button
+              className="flex gap-2 align-middle items-center-safe border-dashed rounded-xl px-4 border-2 p-2 opacity-60 hover:opacity-100 transition-all duration-200 hover:bg-[var(--color-accent-secondary)]/10 text-[var(--color-accent-secondary)] border-[var(--color-accent-secondary)]"
+              onClick={close}
+              aria-label="Close"
+            >
+              Close <XIcon size={20} />
+            </button>
+          </div>
+        )}
+        {!uploadedFile ? (
+          <>
+            {isMobile ? (
+              <div className="w-full flex flex-col items-center justify-center gap-4">
+                <div className="w-[80%]">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={handleFileInput}
+                  />
+                  <button
+                    className="w-full sm:w-auto px-6 py-4 border-2 border-[var(--color-accent)]/80 rounded-xl bg-[var(--color-bg-secondary)]/40 hover:bg-[var(--color-accent)]/10 transition-all text-base font-semibold text-[var(--color-accent)]/80 flex items-center justify-center gap-2"
+                    onClick={handleManualSelect}
+                  >
+                    <UploadIcon size={24} /> Select PDF Manually
+                  </button>
+                </div>
+                <p
+                  className="text-sm text-gray-400 font-light mt-2"
+                  style={{ color: "var(--color-text-secondary)" }}
+                >
+                  Maximum size: 25 MB, Format: PDF
+                </p>
+              </div>
+            ) : (
+              <>
+                <div
+                  className={`relative w-full max-w-2xl aspect-[16/9] border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-8 transition-colors hover:bg-[var(--color-bg-secondary)]/20 ${
+                    dragActive
+                      ? "border-[var(--color-accent)]/60 bg-[var(--color-bg-secondary)]/20"
+                      : "border-[var(--color-border)] "
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={handleManualSelect}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={handleFileInput}
+                  />
+                  <div
+                    className="flex flex-col items-center gap-2"
+                    style={{
+                      color: "var(--color-text-secondary)",
+                    }}
+                  >
+                    <UploadIcon size={28} />
+                    <p className="text-center font-light">Drop file</p>
+                    <p className="text-center text-sm font-light opacity-80">
+                      or
+                    </p>
+                    <p className="text-center font-light cursor-pointer">
+                      Select Manually
+                    </p>
+                  </div>
+                </div>
+                <p
+                  className="text-sm text-gray-400 font-light"
+                  style={{
+                    color: "var(--color-text-secondary)",
+                  }}
+                >
+                  Maximum size: 25 MB, Format: PDF
+                </p>
+              </>
+            )}
+          </>
+        ) : isFetchingMetadata ? (
+          <div className="flex flex-col items-center justify-center min-h-[300px] w-full">
+            <div className="flex flex-row justify-center items-end gap-2 mb-6 mt-8">
+              <span
+                className="animate-bounce"
+                style={{ animationDelay: "0ms" }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="var(--color-muted)"
+                  strokeWidth="2"
+                >
+                  <circle cx="10" cy="10" r="8" />
+                </svg>
+              </span>
+              <span
+                className="animate-bounce"
+                style={{ animationDelay: "100ms" }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="var(--color-muted)"
+                  strokeWidth="2"
+                >
+                  <circle cx="10" cy="10" r="8" />
+                </svg>
+              </span>
+              <span
+                className="animate-bounce"
+                style={{ animationDelay: "200ms" }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="var(--color-muted)"
+                  strokeWidth="2"
+                >
+                  <circle cx="10" cy="10" r="8" />
+                </svg>
+              </span>
+              <span
+                className="animate-bounce"
+                style={{ animationDelay: "300ms" }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="var(--color-muted)"
+                  strokeWidth="2"
+                >
+                  <circle cx="10" cy="10" r="8" />
+                </svg>
+              </span>
+              <span
+                className="animate-bounce"
+                style={{ animationDelay: "400ms" }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="var(--color-muted)"
+                  strokeWidth="2"
+                >
+                  <circle cx="10" cy="10" r="8" />
+                </svg>
+              </span>
+            </div>
+            <div className="text-lg text-[var(--color-text-secondary)] font-light">
+              Extracting Book Metadata
             </div>
           </div>
-          <p className="text-sm text-gray-400 font-light">
-            Maximum size: 25 MB, Format: PDF
-          </p>
-        </>
-      ) : isFetchingMetadata ? (
-        <div className="flex flex-col items-center justify-center min-h-[300px] w-full">
-          <div className="flex flex-row justify-center items-end gap-2 mb-6 mt-8">
-            <span className="animate-bounce" style={{ animationDelay: "0ms" }}>
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-              >
-                <circle cx="10" cy="10" r="8" />
-              </svg>
-            </span>
-            <span
-              className="animate-bounce"
-              style={{ animationDelay: "100ms" }}
-            >
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-              >
-                <circle cx="10" cy="10" r="8" />
-              </svg>
-            </span>
-            <span
-              className="animate-bounce"
-              style={{ animationDelay: "200ms" }}
-            >
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-              >
-                <circle cx="10" cy="10" r="8" />
-              </svg>
-            </span>
-            <span
-              className="animate-bounce"
-              style={{ animationDelay: "300ms" }}
-            >
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-              >
-                <circle cx="10" cy="10" r="8" />
-              </svg>
-            </span>
-            <span
-              className="animate-bounce"
-              style={{ animationDelay: "400ms" }}
-            >
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-              >
-                <circle cx="10" cy="10" r="8" />
-              </svg>
-            </span>
-          </div>
-          <div className="text-lg text-white font-light">
-            Extracting Book Info
-          </div>
-        </div>
-      ) : metadata ? (
-        <div
-          className="max-w-3xl w-full border-2 rounded-lg flex flex-col items-center  bg-blue-950/10 border-blue-400"
-          style={{
-            minWidth: "clamp(260px,40vw,600px)",
-            padding: "2rem 1.5rem",
-          }}
-        >
-          <div className="flex flex-col items-center gap-6 w-full ">
-            <p className="text-center font-medium">{uploadedFile.name}</p>
-            <div className="flex flex-row w-full items-start gap-8 mb-6 ">
-              {coverImage && (
-                <div className="w-36 h-50 rounded overflow-hidden relative">
-                  <Image
-                    src={coverImage}
-                    alt="Book cover"
-                    width={144}
-                    height={200}
-                    className="object-cover w-full h-full"
-                    sizes="144px"
-                  />
-                </div>
-              )}
-              <div className="flex-1 space-y-2">
-                {isFetchingMetadata && (
-                  <div className="text-blue-300">Fetching metadata...</div>
-                )}
-                {metadata && !isFetchingMetadata && (
-                  <div>
-                    {metadata.title && (
-                      <div className="text-lg font-semibold">
-                        {metadata.title}
-                      </div>
-                    )}
-                    {metadata.author && (
-                      <div className="text-sm text-gray-400">
-                        {metadata.author}
-                      </div>
-                    )}
-                    {metadata.publisher && (
-                      <div className="text-sm text-gray-400">
-                        {metadata.publisher}
-                      </div>
-                    )}
-                    {metadata.year && (
-                      <div className="text-sm text-gray-400">
-                        {metadata.year}
-                      </div>
-                    )}
-                    {metadata.isbn && (
-                      <div className="text-sm text-gray-400">
-                        ISBN: {metadata.isbn}
-                      </div>
-                    )}
-                    {metadata.pages && (
-                      <div className="text-xs text-gray-500">
-                        {metadata.pages} pages
-                      </div>
-                    )}
-                    {metadata.description && (
-                      <div className="text-xs text-gray-300 mt-2">
-                        {metadata.description.length > 200
-                          ? metadata.description.slice(0, 200) + "..."
-                          : metadata.description}
-                      </div>
-                    )}
+        ) : metadata ? (
+          <div
+            className="max-w-3xl w-full border-2 rounded-lg flex flex-col items-center  bg-blue-950/10 border-blue-400"
+            style={{
+              minWidth: "clamp(260px,40vw,600px)",
+              padding: "2rem 1.5rem",
+            }}
+          >
+            <div className="flex flex-col items-center gap-6 w-full ">
+              <p className="text-center font-medium text-[var(--color-text-secondary)]">
+                {uploadedFile.name}
+              </p>
+              <div className="flex flex-row w-full items-start gap-8 mb-6 ">
+                {coverImage && (
+                  <div className="w-36 h-50 rounded overflow-hidden relative">
+                    <Image
+                      src={coverImage}
+                      alt="Book cover"
+                      width={144}
+                      height={200}
+                      className="object-cover w-full h-full"
+                      sizes="144px"
+                    />
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Show extracted chapters after processing */}
-            <div className="w-full flex flex-col items-start mt-4">
-              {/* Action buttons below loading indicator and error */}
-              <div className="self-end flex flex-row gap-6 z-50 mb-2">
-                <div className="flex flex-col items-start self-center  h-10 mr-4">
-                  {isEnhancing && <EnhanceLoadingIndicator />}
-                  {enhanceError && (
-                    <div className="text-red-400 text-xs mb-2">
-                      {enhanceError}
+                <div className="flex-1 space-y-2">
+                  {isFetchingMetadata && (
+                    <div className="text-blue-300">Fetching metadata...</div>
+                  )}
+                  {metadata && !isFetchingMetadata && (
+                    <div>
+                      {metadata.title && (
+                        <div className="text-xl font-semibold text-[var(--color-text)]">
+                          {metadata.title}
+                        </div>
+                      )}
+                      {metadata.author && (
+                        <div className="text-sm text-[var(--color-text-secondary)]">
+                          {metadata.author}
+                        </div>
+                      )}
+                      {metadata.publisher && (
+                        <div className="text-sm text-[var(--color-text-secondary)]">
+                          {metadata.publisher}
+                        </div>
+                      )}
+                      {metadata.year && (
+                        <div className="text-sm text-[var(--color-text-secondary)]">
+                          {metadata.year}
+                        </div>
+                      )}
+                      {metadata.isbn && (
+                        <div className="text-sm text-[var(--color-text-secondary)]">
+                          ISBN: {metadata.isbn}
+                        </div>
+                      )}
+                      {metadata.pages && (
+                        <div className="text-xs text-[var(--color-text-secondary)]">
+                          {metadata.pages} pages
+                        </div>
+                      )}
+                      {metadata.description && (
+                        <div className="text-xs text-[var(--color-text-secondary)] mt-2">
+                          {metadata.description.length > 200
+                            ? metadata.description.slice(0, 200) + "..."
+                            : metadata.description}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+              </div>
 
-                {!isEnhancing && !enhancedChapters && (
-                  <button
-                    className="px-6 py-2 border-2 border-blue-400 rounded-xl hover:bg-blue-400/30 transition-all text-base font-semibold text-blue-300 flex items-center gap-2"
-                    onClick={handleProcess}
-                    disabled={isEnhancing}
-                  >
-                    Extract contents
-                  </button>
-                )}
-                {isEnhancing ? (
-                  <button
-                    className="px-6 py-2 border-2 border-red-400 rounded-xl hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
-                    onClick={removeFile}
-                  >
-                    Cancel
-                  </button>
-                ) : (
-                  <>
-                    {enhancedChapters && enhancedChapters.length > 0 && (
-                      <button
-                        className="px-6 py-2 border-2 border-green-400 rounded-xl hover:bg-green-400/30 transition-all text-base font-semibold text-green-300"
-                        onClick={addToLibrary}
-                      >
-                        Add to Library
-                      </button>
+              {/* Show extracted chapters after processing */}
+              <div className="w-full flex flex-col items-start mt-4">
+                {/* Action buttons below loading indicator and error */}
+                <div className="self-end flex flex-row gap-6 z-50 mb-2">
+                  <div className="flex flex-col items-start self-center  h-10 mr-4">
+                    {isEnhancing && <EnhanceLoadingIndicator />}
+                    {enhanceError && (
+                      <div className="text-red-400 text-xs mb-2">
+                        {enhanceError}
+                      </div>
                     )}
+                  </div>
+
+                  {!isEnhancing && !enhancedChapters && (
                     <button
-                      className="px-6 py-2 border-2 border-red-400 rounded-xl hover:bg-red-400/30 transition-all text-base font-semibold text-red-300"
+                      className="px-6 py-2 border-2 border-[var(--color-accent)]/80 rounded-xl hover:bg-[var(--color-accent)]/20 transition-all text-base font-semibold text-[var(--color-accent)]/80 flex items-center gap-2"
+                      onClick={handleProcess}
+                      disabled={isEnhancing}
+                    >
+                      Extract contents
+                    </button>
+                  )}
+                  {isEnhancing ? (
+                    <button
+                      className="px-6 py-2 border-2 border-[var(--color-accent-secondary)]/60 rounded-xl hover:bg-[var(--color-accent-secondary)]/20 transition-all text-base font-semibold text-[var(--color-accent-secondary)]/60 flex items-center gap-2"
                       onClick={removeFile}
                     >
                       Cancel
                     </button>
+                  ) : (
+                    <>
+                      {enhancedChapters && enhancedChapters.length > 0 && (
+                        <button
+                          className="px-6 py-2 border-2 border-[var(--color-accent-quaternary)] rounded-xl hover:bg-[var(--color-accent-quaternary)]/30 transition-all text-base font-semibold text-[var(--color-accent-quaternary)]"
+                          onClick={addToLibrary}
+                        >
+                          Add to Library
+                        </button>
+                      )}
+                      <button
+                        className="px-6 py-2 border-2 border-[var(--color-accent-secondary)]/60 rounded-xl hover:bg-[var(--color-accent-secondary)]/20 transition-all text-base font-semibold text-[var(--color-accent-secondary)]/60 flex items-center gap-2"
+                        onClick={removeFile}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
+                {enhancedChapters && enhancedChapters.length > 0 && (
+                  <>
+                    <h3 className="text-md font-medium mb-2 text-left mt-8 text-[var(--color-text)]">
+                      Extracted Table of Contents
+                    </h3>
+                    <div
+                      className="w-full mx-auto overflow-y-auto items-start rounded "
+                      style={{ maxHeight: "220px" }}
+                    >
+                      {renderChapters(enhancedChapters)}
+                    </div>
                   </>
                 )}
               </div>
-              {enhancedChapters && enhancedChapters.length > 0 && (
-                <>
-                  <h3 className="text-md font-medium mb-2 text-left mt-8">
-                    Extracted Table of Contents
-                  </h3>
-                  <div
-                    className="w-full mx-auto overflow-y-auto items-start rounded "
-                    style={{ maxHeight: "220px" }}
-                  >
-                    {renderChapters(enhancedChapters)}
-                  </div>
-                </>
-              )}
             </div>
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </>
   );
 }
