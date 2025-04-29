@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCcw, UploadIcon, XIcon } from "lucide-react";
+import { Redo, RefreshCcw, Undo, UploadIcon, XIcon } from "lucide-react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { initPdfWorker, processPdfFile } from "@/services/pdfProcessingService";
@@ -111,6 +111,12 @@ export default function UploadArea({
   const [tocPageText, setTocPageText] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [fetchingCover, setFetchingCover] = useState(false);
+  const [prevCover, setPrevCover] = useState<string | null>(null);
+  const [newCover, setNewCover] = useState<string | null>(null);
+  const [currentCoverState, setCurrentCoverState] = useState<
+    "original" | "new" | null
+  >(null);
+
   type BookMetadata = {
     title?: string;
     author?: string;
@@ -180,6 +186,7 @@ export default function UploadArea({
       try {
         const { coverImagePath, outline, getTextForPageRange } =
           await processPdfFile(uploadedFile);
+        setPrevCover(coverImagePath || null);
         setCoverImage(coverImagePath || null);
         // Find TOC start page
         const { min: tocStart } = getTOCPageRange(outline);
@@ -435,16 +442,32 @@ export default function UploadArea({
   const getNewCover = async () => {
     if (fetchingCover) return;
     setFetchingCover(true);
-    if (metadata && metadata.isbn) {
-      const newCover = await setOLCover(metadata.isbn);
-      console.log("New cover URL:", newCover);
-      setMetadata((prev) => ({
-        ...(prev as BookMetadata),
-        coverImage: newCover,
-      }));
-      setCoverImage(newCover || null);
+    try {
+      if (metadata && metadata.isbn) {
+        const newCover = await setOLCover(metadata.isbn);
+        if (newCover) {
+          console.log("New cover fetched:", newCover);
+          setPrevCover(coverImage); // Save the current cover as the previous one
+          setCoverImage(newCover); // Set the new cover
+          setNewCover(newCover); // Save the new cover
+          setCurrentCoverState("new"); // Update the state to reflect the new cover
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch new cover:", error);
+    } finally {
+      setFetchingCover(false);
     }
-    setFetchingCover(false);
+  };
+
+  const switchCover = () => {
+    if (currentCoverState === "new") {
+      setCoverImage(prevCover); // Switch back to the previous cover
+      setCurrentCoverState("original"); // Update the state to reflect the original cover
+    } else {
+      setCoverImage(newCover); // Switch to the new cover
+      setCurrentCoverState("new"); // Update the state to reflect the new cover
+    }
   };
 
   return (
@@ -636,24 +659,30 @@ export default function UploadArea({
                       className="object-cover w-full h-full rounded"
                       sizes="144px"
                     />
-                    <button
-                      className="absolute bottom-0 -right-10 rounded-xl p-1 border-2 border-[var(--color-accent-quaternary)]/80 transition-all duration-200 hover:bg-[var(--color-accent-quaternary)]/20"
-                      title="get cover from OpenLibrary"
-                      onClick={getNewCover}
-                      disabled={fetchingCover}
-                    >
-                      {fetchingCover ? (
-                        <RefreshCcw
-                          size={16}
-                          className="animate-spin text-[var(--color-accent-quaternary)]"
-                        />
-                      ) : (
-                        <RefreshCcw
-                          size={16}
-                          className="text-[var(--color-accent-quaternary)]"
-                        />
-                      )}
-                    </button>
+                    {metadata && metadata.isbn ? (
+                      <button
+                        className="absolute bottom-0 -right-10 rounded-xl p-1 border-2 border-[var(--color-accent-quaternary)]/80 transition-all duration-200 hover:bg-[var(--color-accent-quaternary)]/20"
+                        title="get cover from OpenLibrary"
+                        onClick={newCover ? switchCover : getNewCover}
+                        disabled={fetchingCover}
+                      >
+                        {fetchingCover && !newCover ? (
+                          <RefreshCcw
+                            size={16}
+                            className="animate-spin text-[var(--color-accent-quaternary)]"
+                          />
+                        ) : currentCoverState === "new" && prevCover ? (
+                          <Undo size={16} />
+                        ) : currentCoverState === "original" && newCover ? (
+                          <Redo size={16} />
+                        ) : (
+                          <RefreshCcw
+                            size={16}
+                            className="text-[var(--color-accent-quaternary)]"
+                          />
+                        )}
+                      </button>
+                    ) : null}
                   </div>
                 )}
                 <div className="flex-1 space-y-2">

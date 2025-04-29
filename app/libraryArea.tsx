@@ -52,7 +52,7 @@ export default function LibraryArea() {
     <div key={book.id} className="flex flex-col">
       <div className="relative aspect-[1/1.5] overflow-hidden rounded-lg mb-3 sm:mb-4">
         <div
-          className="w-full h-full bg-[var(--color-surface)]/30 rounded-lg"
+          className={`w-full h-full bg-[var(--color-surface)]/30 rounded-lg`}
           style={{
             backgroundImage: `url(${book.coverImage})`,
             backgroundSize: "cover",
@@ -107,7 +107,7 @@ export default function LibraryArea() {
         <header className="flex flex-col sm:flex-row sm:items-center sm:place-content-between gap-5 sm:gap-6 mb-8 sm:mb-10">
           <h1
             className="text-6xl sm:text-6xl md:text-6xl lg:text-7xl font-light text-center sm:text-left sm:mb-0 mb-4 -mt-4 sm:mt-0"
-            style={{ color: "var(--color-text)" }}
+            style={{ color: "var(--color-strong)" }}
             aria-label="Library title"
           >
             Your Books

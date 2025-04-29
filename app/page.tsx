@@ -14,15 +14,25 @@ import { useLibrary } from "./hooks/useLibrary";
 
 export default function Home() {
   const [emptyLibrary, setEmptyLibrary] = useState(true);
-
+  const [displayLoading, setDisplayLoading] = useState(true);
   const { loading, error, books } = useLibrary();
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDisplayLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     setEmptyLibrary(books.length === 0);
   }, [books]);
 
-  const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+
+  const showLoading = loading || displayLoading;
 
   return (
     <div
@@ -54,7 +64,7 @@ export default function Home() {
       </header>
 
       <main className="w-full grow flex items-center justify-center row-span-2 z-10">
-        {loading ? (
+        {showLoading ? (
           <AnimatedLogo />
         ) : !loading && error ? (
           <></>
