@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=Klee+One&family=Noto+Serif+JP:wght@200..900&family=Sawarabi+Mincho&family=Yuji+Boku&display=swap");
 /* styles/globals.css */
 @import "tailwindcss";
 
@@ -123,3 +124,33 @@ html::before {
   --color-accent-tertiary: #fbbf24; /* amber-400 */
   --color-accent-quaternary: #3cc2b0; /* teal-400 */
 }
+/* .text-line {
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  animation: dash 5s linear forwards, filling 5s ease-in forwards;
+  font-size: 80px;
+}
+
+.text-line text {
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: normal;
+  font-style: normal;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes filling {
+  0%,
+  90% {
+    fill: #bac736;
+    fill-opacity: 0;
+  }
+  100% {
+    fill: #bac736;
+    fill-opacity: 1;
+  }
+} */

@@ -50,9 +50,9 @@ export default function LibraryArea() {
   // Render book component to reduce complexity in main render
   const renderBook = (book: BookMetadata) => (
     <div key={book.id} className="flex flex-col">
-      <div className="relative aspect-[2/3] overflow-hidden rounded-lg mb-3 sm:mb-4">
+      <div className="relative aspect-[1/1.5] overflow-hidden rounded-lg mb-3 sm:mb-4">
         <div
-          className="w-full h-full bg-gradient-to-b from-blue-900 to-black"
+          className="w-full h-full bg-[var(--color-surface)]/30 rounded-lg"
           style={{
             backgroundImage: `url(${book.coverImage})`,
             backgroundSize: "cover",
@@ -131,7 +131,7 @@ export default function LibraryArea() {
               />
               <input
                 type="text"
-                className="w-full bg-transparent text-[var(--color-text)] border  rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-gray-600"
+                className="w-full bg-transparent text-[var(--color-text)] border  rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-600"
                 style={{
                   borderColor: "var(--color-border)",
                 }}

@@ -5,6 +5,9 @@ import { Lightbulb, LightbulbOff, User } from "lucide-react";
 
 import UploadArea from "./uploadArea";
 import LibraryArea from "./libraryArea";
+
+import AnimatedLogo from "../components/AnimatedLogo";
+
 import { useRouter } from "next/navigation";
 import { useTheme } from "./themeContext";
 import { useLibrary } from "./hooks/useLibrary";
@@ -15,7 +18,6 @@ export default function Home() {
   const { loading, error, books } = useLibrary();
 
   useEffect(() => {
-    console.log("Books:", books);
     setEmptyLibrary(books.length === 0);
   }, [books]);
 
@@ -29,10 +31,11 @@ export default function Home() {
     >
       <header className="w-full h-12 p-4 flex justify-between items-center z-10">
         <h1
-          className="text-2xl font-bold cursor-pointer select-none"
+          className="text-xl font-bold cursor-pointer select-none"
+          style={{ fontFamily: "Hachi Maru Pop", translate: "0 -6px" }}
           onClick={() => router.push("/")}
         >
-          学ぶKO
+          学ぶKo
         </h1>
         <div className="flex items-center gap-4">
           {theme === "light" ? (
@@ -52,7 +55,7 @@ export default function Home() {
 
       <main className="w-full grow flex items-center justify-center row-span-2 z-10">
         {loading ? (
-          <h2>LOADING...</h2>
+          <AnimatedLogo />
         ) : !loading && error ? (
           <></>
         ) : !loading && emptyLibrary ? (
