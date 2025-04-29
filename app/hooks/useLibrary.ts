@@ -1,34 +1,95 @@
-import { useState, useEffect, useCallback } from "react";
+import { BookMetadata } from "@/types/types";
+import { useEffect, useState } from "react";
+import { BookDocument } from "../uploadArea";
 
 export function useLibrary() {
-  const [books, setBooks] = useState<any[]>([]);
+  const [books, setBooks] = useState<BookMetadata[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadLibrary = useCallback(() => {
-    const data = localStorage.getItem("manabikoLibrary");
-    if (data) {
-      setBooks(JSON.parse(data));
-    } else {
-      setBooks([]);
-    }
-  }, []);
+  const loadLibrary = async () => {
+    const fetchLibrary = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/books", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!res.ok) {
+          console.error("Failed to load library:", res.statusText);
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.success) {
+          console.error("Failed to load library:", data.error);
+          return;
+        }
+
+        setBooks(data.books);
+        setLoading(false);
+      } catch (error) {
+        setError("Failed to load library");
+        console.error("Error loading library:", error);
+      }
+    };
+
+    fetchLibrary();
+  };
 
   useEffect(() => {
     loadLibrary();
-    // Listen for storage changes (multi-tab support)
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "manabikoLibrary") loadLibrary();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [loadLibrary]);
+    console.log("Library loaded:", books);
+  }, []);
 
-  const addBook = (book: any) => {
-    setBooks((prev) => {
-      const updated = [...prev, book];
-      localStorage.setItem("manabikoLibrary", JSON.stringify(updated));
-      return updated;
-    });
+  const addBook = async (book: BookDocument) => {
+    try {
+      const res = await fetch("/api/books", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bookData: {
+            title: book.title,
+            author: book.author,
+            isbn: book.isbn,
+            description: book.description,
+            coverurl: book.coverUrl,
+            filepath: book.filePath || "failpath",
+            filehash: crypto.randomUUID().replace(/-/g, "").padEnd(64, "0"), // Just for testing, should be a real 64-character hash
+            uploadedbyid: 3549867, // Int
+            tableofcontents: book.tableOfContents,
+            progress: book.progress,
+            lastopened: new Date().toISOString(), // or simply new Date()
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        console.error("Failed to add book:", res.statusText);
+        return;
+      }
+
+      const data = await res.json();
+      if (!data.success) {
+        console.error("Failed to add book:", data.error);
+        return;
+      }
+
+      setBooks((prevBooks) => [...prevBooks, data.book]);
+      console.log("Book added successfully:", data.book);
+      // Optionally, reload the library to ensure the new book is displayed
+      await loadLibrary();
+    } catch (error) {
+      console.error("Error adding book:", error);
+      return;
+    }
   };
 
-  return { books, addBook, reload: loadLibrary };
+  return { loading, error, books, addBook, reload: loadLibrary };
 }

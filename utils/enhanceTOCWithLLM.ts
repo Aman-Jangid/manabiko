@@ -1,27 +1,43 @@
 import Together from "together-ai";
 import { jsonrepair } from "jsonrepair"; // npm install jsonrepair
+
 export interface TOCItemLLM {
-  title: string;
-  pageNumber: number;
-  level: number;
-  children?: TOCItemLLM[];
+  c: string; // Chapter/Title
+  p: number; // Page number
+  lv: number; // Level
+  t?: TOCItemLLM[]; // Children
 }
 
-// Helper to extract JSON block from LLM output
 function extractJsonBlock(content: string): string {
-  // Try to match ```json ... ```
   const match = content.match(/```json\s*([\s\S]*?)```/i);
   if (match) return match[1].trim();
-  // Try to match ``` ... ```
   const match2 = content.match(/```([\s\S]*?)```/);
   if (match2) return match2[1].trim();
-  // Fallback: try to find the first { ... }
   const firstBrace = content.indexOf("{");
   const lastBrace = content.lastIndexOf("}");
   if (firstBrace !== -1 && lastBrace !== -1) {
     return content.slice(firstBrace, lastBrace + 1);
   }
   return content.trim();
+}
+
+function splitIntoChunks(text: string, maxChunkLength: number): string[] {
+  const lines = text.split("\n");
+  const chunks: string[] = [];
+  let currentChunk = "";
+
+  for (const line of lines) {
+    if ((currentChunk + "\n" + line).length > maxChunkLength) {
+      chunks.push(currentChunk.trim());
+      currentChunk = line;
+    } else {
+      currentChunk += "\n" + line;
+    }
+  }
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+  return chunks;
 }
 
 export async function enhanceTOCWithLLM(
@@ -32,76 +48,111 @@ export async function enhanceTOCWithLLM(
     throw new Error("TOGETHER_API_KEY is not set in environment variables");
   }
 
-  // Build the prompt directly from the compact string
-  const prompt = `Below is a flat string representation of a book's table of contents, where each entry is formatted as: title|page|l<level>.
-${rawText}
-
-Parse this into a compact JSON array where each chapter is an object with keys: c (chapter title), p (page), lv (level), t (topics array if any), and section (if exists). If a chapter contains subchapters or topics, always use the key t (an array) for them. Do not use other keys like topics or children. All chapters and topics, at any level, should be objects with the same structure: {c, p, lv, t?}. Only output the JSON, no explanation, no beautification.`;
-
   const together = new Together({ apiKey });
+
+  const model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free";
+  const maxTokens = 4000; // Output tokens limit
+  const approxCharsPerToken = 3.5;
+  const maxPromptTokens = 3000; // Leave space for output
+  const maxPromptChars = Math.floor(maxPromptTokens * approxCharsPerToken);
+
+  const chunks = splitIntoChunks(rawText, maxPromptChars);
+  console.log(`✅ Split input into ${chunks.length} chunk(s)`);
+
   let mergedResults: TOCItemLLM[] = [];
-  let truncated = false;
 
-  console.log("Prompt sent to LLM:\n", prompt);
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
 
-  // Set max_tokens to 4000 for the chunk
-  const maxTokens = 4000;
-
-  const response = await together.chat.completions.create({
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-    stream: false,
-    max_tokens: maxTokens,
-  });
-
-  const llmContent = response.choices?.[0]?.message?.content;
-  console.log(`LLM raw output:\n`, llmContent);
-
-  // Log the output received from the LLM
-  console.log("Output received from LLM:\n", llmContent);
-
-  try {
-    if (typeof llmContent !== "string") {
-      throw new Error("LLM response content is not a string");
-    }
-    let jsonString = llmContent.trim();
-    if (!jsonString.startsWith("[") && !jsonString.startsWith("{")) {
-      jsonString = extractJsonBlock(jsonString);
-    }
-    jsonString = jsonrepair(jsonString);
-    const parsed: unknown = JSON.parse(jsonString);
-    if (Array.isArray(parsed)) {
-      mergedResults = mergedResults.concat(parsed);
-    } else if (
-      parsed &&
-      typeof parsed === "object" &&
-      "chapters" in parsed &&
-      Array.isArray((parsed as { chapters: unknown }).chapters)
-    ) {
-      const chunkResp = parsed as {
-        chapters: unknown[];
-        truncated?: boolean;
-      };
-      mergedResults = mergedResults.concat(chunkResp.chapters as TOCItemLLM[]);
-      if (chunkResp.truncated) truncated = true;
-    }
-  } catch (e) {
-    console.error(
-      `Failed to parse LLM response (expected compact JSON):`,
-      llmContent,
-      e
+    console.log(
+      `🚀 Sending chunk ${i + 1}/${chunks.length} (${chunk.length} characters)`
     );
-    // Continue with next chunk
+
+    const prompt = `
+You are a JSON parser specialized in book tables of contents.
+
+INPUT (flat TOC outline):
+---
+${chunk}
+---
+
+TASK:
+1. Parse each entry, where format is: title|page|l<level>.
+2. Fix hierarchy: entries must nest under the most recent preceding item with a smaller level.
+3. For every entry, create an object:
+   • c (string): chapter/topic title
+   • p (integer): page number
+   • lv (integer): nesting level
+   • t (array, optional): nested children
+4. Use ONLY these keys: c, p, lv, t.
+5. Omit t if no children.
+6. Output a compact JSON array, no extra text, no comments, no beautification.
+
+EXAMPLE:
+\`\`\`json
+[
+  { "c": "Preface", "p": 19, "lv": 1 },
+  {
+    "c": "About this book", "p": 23, "lv": 1, "t": [
+      { "c": "Who should read this book?", "p": 24, "lv": 2 },
+      { "c": "How this book is organized: a roadmap", "p": 25, "lv": 2 }
+    ]
+  }
+]
+\`\`\`
+Only output valid JSON following this schema.
+    `.trim();
+
+    const response = await together.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model,
+      stream: false,
+      max_tokens: maxTokens,
+    });
+
+    const llmContent = response.choices?.[0]?.message?.content;
+
+    console.log(
+      `📥 Received response for chunk ${i + 1}:`,
+      llmContent?.slice(0, 300),
+      "...\n"
+    );
+
+    try {
+      if (typeof llmContent !== "string") {
+        throw new Error("LLM response content is not a string");
+      }
+      let jsonString = llmContent.trim();
+      if (!jsonString.startsWith("[") && !jsonString.startsWith("{")) {
+        jsonString = extractJsonBlock(jsonString);
+      }
+      jsonString = jsonrepair(jsonString);
+      const parsed: unknown = JSON.parse(jsonString);
+
+      if (Array.isArray(parsed)) {
+        mergedResults = mergedResults.concat(parsed as TOCItemLLM[]);
+      } else if (
+        parsed &&
+        typeof parsed === "object" &&
+        "chapters" in parsed &&
+        Array.isArray((parsed as { chapters: unknown }).chapters)
+      ) {
+        mergedResults = mergedResults.concat(
+          (parsed as { chapters: TOCItemLLM[] }).chapters
+        );
+      }
+    } catch (e) {
+      console.error(
+        `❌ Failed to parse LLM response for chunk ${i + 1}:`,
+        llmContent,
+        e
+      );
+    }
   }
 
-  if (truncated) {
-    console.warn("LLM output was truncated.");
-  }
+  console.log(
+    `✅ Final merged result contains ${mergedResults.length} TOC item(s).`
+  );
 
   return mergedResults;
 }

@@ -4,15 +4,7 @@ import { Search, PlusCircle } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import UploadArea from "./uploadArea";
 import { useLibrary } from "./hooks/useLibrary";
-
-interface Book {
-  id: string;
-  title: string;
-  author: string;
-  coverImage: string;
-  lastRead: string;
-  progress: number;
-}
+import { BookMetadata } from "@/types/types";
 
 export default function LibraryArea() {
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -56,7 +48,7 @@ export default function LibraryArea() {
     reload();
   };
   // Render book component to reduce complexity in main render
-  const renderBook = (book: Book) => (
+  const renderBook = (book: BookMetadata) => (
     <div key={book.id} className="flex flex-col">
       <div className="relative aspect-[2/3] overflow-hidden rounded-lg mb-3 sm:mb-4">
         <div
@@ -68,7 +60,7 @@ export default function LibraryArea() {
           }}
         />
 
-        {book.progress > 0 && (
+        {book.progress !== undefined && book.progress > 0 && (
           <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 pt-3 pb-2 px-3 flex flex-col">
             <div className="flex w-full items-center gap-2 mb-1.5">
               <div className="w-full bg-gray-700 rounded-full h-1.5">

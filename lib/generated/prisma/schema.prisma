@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Analytics {
+  id         Int      @id @default(autoincrement())
+  userid     Int
+  documentid Int
+  starttime  DateTime @db.Timestamp(6)
+  endtime    DateTime @db.Timestamp(6)
+  duration   Int
+  createdat  DateTime @default(now()) @db.Timestamp(6)
+  updatedat  DateTime @default(now()) @db.Timestamp(6)
+  Document   Document @relation(fields: [documentid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analytics_document")
+  User       User     @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analytics_user")
+}
+
+model Document {
+  id                 Int                  @id @default(autoincrement())
+  title              String               @db.VarChar(255)
+  author             String?              @db.VarChar(255)
+  isbn               String?              @unique @db.VarChar(255)
+  description        String?
+  coverurl           String?
+  filepath           String
+  filehash           String               @unique @db.Char(64)
+  uploadedbyid       Int
+  tableofcontents    Json                 @db.Json
+  progress           Float
+  lastopened         DateTime?            @db.Timestamp(6)
+  createdat          DateTime             @default(now()) @db.Timestamp(6)
+  updatedat          DateTime             @default(now()) @db.Timestamp(6)
+  Analytics          Analytics[]
+  User               User                 @relation(fields: [uploadedbyid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_uploadedby")
+  DocumentPreference DocumentPreference[]
+  Highlight          Highlight[]
+}
+
+model DocumentPreference {
+  id         Int      @id @default(autoincrement())
+  userid     Int
+  documentid Int
+  theme      String   @db.VarChar(100)
+  fontsize   String   @db.VarChar(100)
+  notes      Json     @db.Json
+  createdat  DateTime @default(now()) @db.Timestamp(6)
+  updatedat  DateTime @default(now()) @db.Timestamp(6)
+  Document   Document @relation(fields: [documentid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_preference_document")
+  User       User     @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_preference_user")
+}
+
+model Highlight {
+  id          Int      @id @default(autoincrement())
+  documentid  Int
+  userid      Int
+  text        String
+  color       String   @db.VarChar(50)
+  pagenumber  Int
+  coordinates Json     @db.Json
+  createdat   DateTime @default(now()) @db.Timestamp(6)
+  updatedat   DateTime @default(now()) @db.Timestamp(6)
+  Document    Document @relation(fields: [documentid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_highlight_document")
+  User        User     @relation(fields: [userid], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_highlight_user")
+}
+
+model User {
+  id                 Int                  @id @default(autoincrement())
+  name               String               @db.VarChar(255) // Add the name field here
+  email              String               @unique @db.VarChar(255)
+  passwordhash       String?              @db.VarChar(255)
+  createdat          DateTime             @default(now()) @db.Timestamp(6)
+  updatedat          DateTime             @default(now()) @db.Timestamp(6)
+  Analytics          Analytics[]
+  Document           Document[]
+  DocumentPreference DocumentPreference[]
+  Highlight          Highlight[]
+}

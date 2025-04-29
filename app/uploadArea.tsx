@@ -1,11 +1,13 @@
 "use client";
 
-import { UploadIcon, XIcon } from "lucide-react";
+import { RefreshCcw, UploadIcon, XIcon } from "lucide-react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { initPdfWorker, processPdfFile } from "@/services/pdfProcessingService";
 import Image from "next/image";
 import { useLibrary } from "./hooks/useLibrary";
+import { setOLCover } from "@/services/openLibraryService";
+import { Chapter } from "@/types/types";
 
 function EnhanceLoadingIndicator() {
   const [elapsed, setElapsed] = useState(0);
@@ -48,23 +50,46 @@ function EnhanceLoadingIndicator() {
   );
 }
 
-// Converts a TOCOutlineItem[] to a compact string with abbreviated keys
 type TOCOutlineItem = {
   pageNumber: number;
   children?: TOCOutlineItem[];
   title?: string;
 };
-function outlineToCompactString(outline: TOCOutlineItem[]): string {
-  function itemToString(item: TOCOutlineItem): string {
+
+export type BookDocument = {
+  title: string;
+  author: string;
+  isbn: string;
+  description: string;
+  coverUrl: string;
+  filePath: string;
+  fileHash: string;
+  uploadedById: string;
+  tableOfContents: Chapter[];
+  progress: number;
+  lastOpened: Date;
+};
+
+// traverses only the first level of children
+function outlineToCompactString(
+  outline: TOCOutlineItem[],
+  maxDepth = 2
+): string {
+  function itemToString(item: TOCOutlineItem, depth: number): string {
     const t = item.title || "";
     const p = item.pageNumber;
-    const c =
-      item.children && item.children.length > 0
-        ? `,c:[${item.children.map(itemToString).join(";")}]`
-        : "";
+    let c = "";
+
+    if (item.children && item.children.length > 0 && depth < maxDepth) {
+      c = `,c:[${item.children
+        .map((child) => itemToString(child, depth + 1))
+        .join(";")}]`;
+    }
+
     return `t:${t},p:${p}${c}`;
   }
-  return outline.map(itemToString).join(";\n");
+
+  return outline.map((item) => itemToString(item, 1)).join(";\n");
 }
 
 export default function UploadArea({
@@ -85,6 +110,7 @@ export default function UploadArea({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [tocPageText, setTocPageText] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [fetchingCover, setFetchingCover] = useState(false);
   type BookMetadata = {
     title?: string;
     author?: string;
@@ -93,6 +119,7 @@ export default function UploadArea({
     isbn?: string;
     description?: string;
     pages?: number;
+    fileName: string; // Ensure fileName is required
   };
   const [metadata, setMetadata] = useState<BookMetadata | null>(null);
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
@@ -124,7 +151,7 @@ export default function UploadArea({
         setIsEnhancing(true);
         setEnhanceError(null);
         try {
-          const res = await fetch("/api/enhance-toc", {
+          const res = await fetch("/api/ai/extract/toc", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ rawText: tocPageText }),
@@ -172,7 +199,7 @@ export default function UploadArea({
         // Fetch metadata from LLM
         let metadata = null;
         if (infoText && infoText.length > 0) {
-          const res = await fetch("/api/get-info", {
+          const res = await fetch("/api/ai/extract/info", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ rawText: infoText }),
@@ -222,7 +249,6 @@ export default function UploadArea({
     return { min: minPage, max: maxPage };
   }
 
-  // Only process after user confirms: fetch TOC from LLM using TOC page range
   const handleProcess = async () => {
     setIsEnhancing(true);
     setEnhancedChapters(null);
@@ -235,7 +261,7 @@ export default function UploadArea({
       // Log the string that will be sent to the LLM
       console.log("TOC outline string to be sent to LLM:", compactOutline);
       // Send to LLM for enhancement
-      const res = await fetch("/api/enhance-toc", {
+      const res = await fetch("/api/ai/extract/toc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawText: compactOutline }),
@@ -380,30 +406,45 @@ export default function UploadArea({
   }, [uploadedFile]);
 
   // Add to Library handler
-  const addToLibrary = () => {
+  const addToLibrary = async () => {
     if (!metadata || !uploadedFile || !enhancedChapters) return;
-    const newBook = {
-      id: Date.now().toString(),
+    const newBook: BookDocument = {
       title: metadata.title || uploadedFile.name,
       author: metadata.author || "Unknown",
-      coverImage,
-      lastRead: "",
+      isbn: metadata.isbn || "",
+      coverUrl: coverImage || "",
+      lastOpened: new Date(),
       progress: 0,
-      fileName: uploadedFile.name,
-      toc: enhancedChapters,
-      metadata,
+      filePath: uploadedFile.name,
+      tableOfContents: enhancedChapters,
+      description: metadata.description || "",
+      fileHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      uploadedById: crypto.randomUUID(),
     };
     // Check for duplicates
-    const duplicate = books.find(
-      (book: { fileName: string }) => book.fileName === newBook.fileName
-    );
+    const duplicate = books.find((book) => book.fileName === newBook.filePath);
     if (duplicate) {
       alert("Book already exists in library");
       close();
       return;
     }
-    addBook(newBook);
+    await addBook(newBook);
     close();
+  };
+
+  const getNewCover = async () => {
+    if (fetchingCover) return;
+    setFetchingCover(true);
+    if (metadata && metadata.isbn) {
+      const newCover = await setOLCover(metadata.isbn);
+      console.log("New cover URL:", newCover);
+      setMetadata((prev) => ({
+        ...(prev as BookMetadata),
+        coverImage: newCover,
+      }));
+      setCoverImage(newCover || null);
+    }
+    setFetchingCover(false);
   };
 
   return (
@@ -584,17 +625,35 @@ export default function UploadArea({
               <p className="text-center font-medium text-[var(--color-text-secondary)]">
                 {uploadedFile.name}
               </p>
-              <div className="flex flex-row w-full items-start gap-8 mb-6 ">
+              <div className="flex flex-row w-full items-start gap-8 mb-6 ml-4">
                 {coverImage && (
-                  <div className="w-36 h-50 rounded overflow-hidden relative">
+                  <div className="w-36 h-50 rounded relative">
                     <Image
                       src={coverImage}
                       alt="Book cover"
                       width={144}
                       height={200}
-                      className="object-cover w-full h-full"
+                      className="object-cover w-full h-full rounded"
                       sizes="144px"
                     />
+                    <button
+                      className="absolute bottom-0 -right-10 rounded-xl p-1 border-2 border-[var(--color-accent-quaternary)]/80 transition-all duration-200 hover:bg-[var(--color-accent-quaternary)]/20"
+                      title="get cover from OpenLibrary"
+                      onClick={getNewCover}
+                      disabled={fetchingCover}
+                    >
+                      {fetchingCover ? (
+                        <RefreshCcw
+                          size={16}
+                          className="animate-spin text-[var(--color-accent-quaternary)]"
+                        />
+                      ) : (
+                        <RefreshCcw
+                          size={16}
+                          className="text-[var(--color-accent-quaternary)]"
+                        />
+                      )}
+                    </button>
                   </div>
                 )}
                 <div className="flex-1 space-y-2">

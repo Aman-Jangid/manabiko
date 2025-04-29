@@ -7,18 +7,17 @@ import UploadArea from "./uploadArea";
 import LibraryArea from "./libraryArea";
 import { useRouter } from "next/navigation";
 import { useTheme } from "./themeContext";
+import { useLibrary } from "./hooks/useLibrary";
 
 export default function Home() {
   const [emptyLibrary, setEmptyLibrary] = useState(true);
 
+  const { loading, error, books } = useLibrary();
+
   useEffect(() => {
-    const library = localStorage.getItem("manabikoLibrary");
-    if (library) {
-      setEmptyLibrary(false);
-    } else {
-      setEmptyLibrary(true);
-    }
-  }, []);
+    console.log("Books:", books);
+    setEmptyLibrary(books.length === 0);
+  }, [books]);
 
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -52,7 +51,15 @@ export default function Home() {
       </header>
 
       <main className="w-full grow flex items-center justify-center row-span-2 z-10">
-        {emptyLibrary ? <UploadArea /> : <LibraryArea />}
+        {loading ? (
+          <h2>LOADING...</h2>
+        ) : !loading && error ? (
+          <></>
+        ) : !loading && emptyLibrary ? (
+          <UploadArea />
+        ) : (
+          <LibraryArea />
+        )}
       </main>
     </div>
   );

@@ -1,4 +1,5 @@
 import { BookInfo } from "../utils/BookTypes";
+import { BookMetadata } from "@/types/types";
 
 interface OpenLibraryData {
   title?: string;
@@ -146,6 +147,14 @@ export function enrichBookInfoWithOpenLibraryData(
   return updatedInfo;
 }
 
+export async function setOLCover(isbn: BookMetadata["isbn"]) {
+  if (!isbn) {
+    console.error("ISBN is undefined");
+    return;
+  }
+  const olData = await fetchBookDataByISBN(isbn);
+  return olData ? olData.cover_url : null;
+}
 /**
  * Determines if we should fetch a cover from OpenLibrary
  * Only fetches if no local cover is available
