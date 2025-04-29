@@ -54,12 +54,11 @@ export default function LibraryArea() {
         <div
           className={`w-full h-full bg-[var(--color-surface)]/30 rounded-lg`}
           style={{
-            backgroundImage: `url(${book.coverImage})`,
+            backgroundImage: `url('${book.coverImage}')`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         />
-
         {book.progress !== undefined && book.progress > 0 && (
           <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 pt-3 pb-2 px-3 flex flex-col">
             <div className="flex w-full items-center gap-2 mb-1.5">

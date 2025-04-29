@@ -415,6 +415,19 @@ export default function UploadArea({
   // Add to Library handler
   const addToLibrary = async () => {
     if (!metadata || !uploadedFile || !enhancedChapters) return;
+
+    const formData = new FormData();
+    formData.append("file", uploadedFile);
+    formData.append("filename", uploadedFile.name);
+    // formData.append("fileHash", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); // later calculate hash too
+    const res = await fetch("/api/file/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const { filePath } = await res.json();
+    console.log("File was uploaded to:", filePath);
+
     const newBook: BookDocument = {
       title: metadata.title || uploadedFile.name,
       author: metadata.author || "Unknown",
@@ -422,7 +435,7 @@ export default function UploadArea({
       coverUrl: coverImage || "",
       lastOpened: new Date(),
       progress: 0,
-      filePath: uploadedFile.name,
+      filePath: filePath,
       tableOfContents: enhancedChapters,
       description: metadata.description || "",
       fileHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -447,6 +460,20 @@ export default function UploadArea({
         const newCover = await setOLCover(metadata.isbn);
         if (newCover) {
           console.log("New cover fetched:", newCover);
+          // download the new cover image
+          const file = await fetch("/api/file/download", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ url: newCover }),
+          });
+
+          const newCoverUrl = URL.createObjectURL(await file.blob());
+
+          console.log("New cover URL:", newCoverUrl);
+
+          setNewCover(newCoverUrl); // Save the new cover URL
           setPrevCover(coverImage); // Save the current cover as the previous one
           setCoverImage(newCover); // Set the new cover
           setNewCover(newCover); // Save the new cover
