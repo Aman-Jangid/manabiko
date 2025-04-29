@@ -5,16 +5,16 @@
   --background: #100f0f; /* Main background color */
   --foreground: #171717;
   --border-color: #e5e7eb;
+
   --color-bg: #fcfcfc;
   --color-bg-secondary: #eaebf6;
   --color-surface: #d7d8e2;
   --color-muted: #9294ac;
   --color-strong: #484b6a;
-}
 
-:root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -22,9 +22,10 @@
 /* Dark mode customizations */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a; /* Adjust dark mode background */
+    --background: #0a0a0a;
     --foreground: #ededed;
     --border-color: #27272a;
+
     --color-bg: #181a1b;
     --color-bg-secondary: #23272a;
     --color-surface: #2c2f36;
@@ -34,24 +35,20 @@
 }
 
 body {
-  background: var(--background); /* Set main background color */
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans, Arial, Helvetica, sans-serif);
   margin: 0;
   padding: 0;
-}
 
-* {
+  /* Scoped transition for theme changes */
   transition: background-color 0.15s ease, border-color 0.15s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html {
   font-size: 16px;
-}
-
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -61,18 +58,6 @@ a {
 
 button {
   cursor: pointer;
-}
-
-/* Refined Radial Gradient */
-html::before {
-  content: "";
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: 100vw;
-  height: 100vh;
-  transform: translate(-50%, -50%);
-  background-blend-mode: overlay;
 }
 
 /* Hide scrollbar but keep functionality */
@@ -85,10 +70,11 @@ html::before {
   display: none; /* Chrome, Safari and Opera */
 }
 
+/* Optional: Theme-specific overrides if using manual switching */
 [data-theme="dark"] {
   --color-bg: radial-gradient(
     circle farthest-corner at 50% 50%,
-    rgb(21, 32, 44) 0%,
+    rgb(21, 32, 44) 50%,
     rgb(4, 12, 20) 100.2%
   );
   --color-bg-secondary: #23272a;
@@ -98,28 +84,28 @@ html::before {
   --color-border: #42424260;
   --color-text: #c0bdbd;
   --color-text-secondary: #71728a;
-  --color-accent: #2563eb; /* blue-600 */
-  --color-accent-secondary: #ef4444; /* red-500 */
-  --color-accent-tertiary: #fbbf24; /* amber-400 */
-  --color-accent-quaternary: #22af9c; /* teal-400 */
+  --color-accent: #2563eb;
+  --color-accent-secondary: #ef4444;
+  --color-accent-tertiary: #fbbf24;
+  --color-accent-quaternary: #22af9c;
 }
 
 [data-theme="light"] {
   --color-bg: radial-gradient(
     circle farthest-corner at 50% 50%,
     #e3eafc 0%,
-    /* very light blue */ #c7d2fe 50%,
-    /* light indigo */ #f8fafc 100.2% /* almost white */
+    #c7d2fe 50%,
+    #f8fafc 100.2%
   );
-  --color-bg-secondary: #98a1c2; /* indigo-100 */
-  --color-surface: rgba(30, 41, 59, 0.07); /* slate-800, 7% */
-  --color-muted: #64748b; /* slate-500 */
-  --color-strong: #2b4070; /* slate-900 */
-  --color-border: #8ca1bb; /* slate-300 */
-  --color-text: #1e293b; /* slate-800 */
-  --color-text-secondary: #475569; /* slate-600 */
-  --color-accent: #2563eb; /* blue-600 */
-  --color-accent-secondary: #ef4444; /* red-500 */
-  --color-accent-tertiary: #fbbf24; /* amber-400 */
-  --color-accent-quaternary: #3cc2b0; /* teal-400 */
+  --color-bg-secondary: #98a1c2;
+  --color-surface: rgba(30, 41, 59, 0.07);
+  --color-muted: #64748b;
+  --color-strong: #2b4070;
+  --color-border: #8ca1bb;
+  --color-text: #1e293b;
+  --color-text-secondary: #475569;
+  --color-accent: #2563eb;
+  --color-accent-secondary: #ef4444;
+  --color-accent-tertiary: #fbbf24;
+  --color-accent-quaternary: #3cc2b0;
 }

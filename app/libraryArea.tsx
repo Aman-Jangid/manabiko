@@ -4,7 +4,7 @@ import { Search, PlusCircle } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import UploadArea from "./uploadArea";
 import { useLibrary } from "./hooks/useLibrary";
-import { BookMetadata } from "@/types/types";
+import { ExtendedBookMetadata } from "@/types/types";
 
 export default function LibraryArea() {
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -47,14 +47,15 @@ export default function LibraryArea() {
     setAddingBook(false);
     reload();
   };
+
   // Render book component to reduce complexity in main render
-  const renderBook = (book: BookMetadata) => (
+  const renderBook = (book: ExtendedBookMetadata) => (
     <div key={book.id} className="flex flex-col">
       <div className="relative aspect-[1/1.5] overflow-hidden rounded-lg mb-3 sm:mb-4">
         <div
           className={`w-full h-full bg-[var(--color-surface)]/30 rounded-lg`}
           style={{
-            backgroundImage: `url('${book.coverImage}')`,
+            backgroundImage: `url('${book.coverurl}')`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -145,7 +146,7 @@ export default function LibraryArea() {
             ref={containerRef}
             className="grid grid-cols-2 h-full sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 md:gap-8 overflow-y-auto scrollbar-hide pr-6"
           >
-            {books.map(renderBook)}
+            {(books as ExtendedBookMetadata[]).map(renderBook)}
           </div>
 
           <div

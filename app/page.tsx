@@ -8,7 +8,6 @@ import LibraryArea from "./libraryArea";
 
 import AnimatedLogo from "../components/AnimatedLogo";
 
-import { useRouter } from "next/navigation";
 import { useTheme } from "./themeContext";
 import { useLibrary } from "./hooks/useLibrary";
 
@@ -18,7 +17,6 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
 
   const { loading, error, books } = useLibrary();
-  const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -47,7 +45,7 @@ export default function Home() {
         <h1
           className="text-xl font-bold cursor-pointer select-none"
           style={{ fontFamily: "Hachi Maru Pop", translate: "0 -6px" }}
-          onClick={() => router.push("/")}
+          onClick={() => window.location.reload()}
         >
           学ぶKo
         </h1>
