@@ -96,7 +96,6 @@ export default function LibraryArea() {
   );
 
   return addingBook ? (
-    // floating close button
     <>
       <UploadArea close={handleCancelAddBook} showClose={true} />
     </>
