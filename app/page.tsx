@@ -15,9 +15,11 @@ import { useLibrary } from "./hooks/useLibrary";
 export default function Home() {
   const [emptyLibrary, setEmptyLibrary] = useState(true);
   const [displayLoading, setDisplayLoading] = useState(true);
-  const { loading, error, books } = useLibrary();
+  const [mounted, setMounted] = useState(false);
 
+  const { loading, error, books } = useLibrary();
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -30,7 +32,9 @@ export default function Home() {
     setEmptyLibrary(books.length === 0);
   }, [books]);
 
-  const { theme, toggleTheme } = useTheme();
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const showLoading = loading || displayLoading;
 
@@ -48,17 +52,18 @@ export default function Home() {
           学ぶKo
         </h1>
         <div className="flex items-center gap-4">
-          {theme === "light" ? (
-            <Lightbulb
-              className="w-6 h-6 cursor-pointer"
-              onClick={toggleTheme}
-            />
-          ) : (
-            <LightbulbOff
-              className="w-6 h-6 cursor-pointer"
-              onClick={toggleTheme}
-            />
-          )}
+          {mounted &&
+            (theme === "light" ? (
+              <Lightbulb
+                className="w-6 h-6 cursor-pointer"
+                onClick={toggleTheme}
+              />
+            ) : (
+              <LightbulbOff
+                className="w-6 h-6 cursor-pointer"
+                onClick={toggleTheme}
+              />
+            ))}
           <User className="w-6 h-6" />
         </div>
       </header>
