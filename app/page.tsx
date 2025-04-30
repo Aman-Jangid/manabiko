@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lightbulb, LightbulbOff, User } from "lucide-react";
+import { User } from "lucide-react";
 
 import UploadArea from "./uploadArea";
 import LibraryArea from "./libraryArea";
@@ -9,15 +9,13 @@ import LibraryArea from "./libraryArea";
 import AnimatedLogo from "../components/AnimatedLogo";
 
 import { useLibrary } from "./hooks/useLibrary";
-import { useTheme } from "next-themes";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Home() {
   const [emptyLibrary, setEmptyLibrary] = useState(true);
   const [displayLoading, setDisplayLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   const { loading, error, books } = useLibrary();
-  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -29,10 +27,6 @@ export default function Home() {
   useEffect(() => {
     setEmptyLibrary(books.length === 0);
   }, [books]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const showLoading = loading || displayLoading;
 
@@ -50,18 +44,7 @@ export default function Home() {
           学ぶKo
         </h1>
         <div className="flex items-center gap-4">
-          {mounted &&
-            (theme === "light" ? (
-              <Lightbulb
-                className="w-6 h-6 cursor-pointer"
-                onClick={() => setTheme("dark")}
-              />
-            ) : (
-              <LightbulbOff
-                className="w-6 h-6 cursor-pointer"
-                onClick={() => setTheme("light")}
-              />
-            ))}
+          <ThemeToggle />
           <User className="w-6 h-6" />
         </div>
       </header>
