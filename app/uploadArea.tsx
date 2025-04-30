@@ -8,6 +8,7 @@ import Image from "next/image";
 import { useLibrary } from "./hooks/useLibrary";
 import { setOLCover } from "@/services/openLibraryService";
 import { Chapter } from "@/types/types";
+import { useResponsive } from "./hooks/useResponsive";
 
 function EnhanceLoadingIndicator() {
   const [elapsed, setElapsed] = useState(0);
@@ -17,34 +18,38 @@ function EnhanceLoadingIndicator() {
     return () => clearInterval(interval);
   }, []);
 
-  const estimate = elapsed < 60 ? "~30–60s" : ">1 min";
+  if (elapsed > 200) {
+    const err = new Error("Extracting is taking too long.");
+    err.name = "AITimeoutError";
+    throw err;
+  }
 
   return (
-    <div className="flex flex-col items-center gap-0 text-[var(--color-accent)] text-sm mb-2">
-      <div className="flex items-center gap-2">
-        <svg
-          className="animate-spin h-6 w-6 text-[var(--color-accent)]/80"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-            fill="none"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-          />
-        </svg>
-        Extracting chapters using AI...{" "}
-      </div>
-      <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
-        (est. {estimate}, {elapsed}s elapsed)
+    <div className="flex items-start gap-2 text-[var(--color-accent)] text-sm h-10  rounded-lg px-2 py-1 relative">
+      <svg
+        className="animate-spin h-8 w-8 text-[var(--color-accent)]/80"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+          fill="none"
+          className="opacity-25"
+        />
+        <path
+          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+          fill="currentColor"
+          className="opacity-75"
+        />
+      </svg>
+      <span>
+        Processing with AI
+        <span className="absolute min-w-fit max-w-40 bottom-1 right-2 text-[11px] text-[var(--color-text-secondary)]">
+          (est ~60s, {elapsed}s elapsed)
+        </span>
       </span>
     </div>
   );
@@ -135,20 +140,21 @@ export default function UploadArea({
   const { addBook, books } = useLibrary();
 
   // Responsive: detect mobile
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640); // Tailwind's sm breakpoint
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  const { isMobile } = useResponsive();
 
   // Initialize the PDF.js worker
   useEffect(() => {
     initPdfWorker();
-  }, []);
+    if (showClose) {
+      history.pushState(null, "", location.href);
+      window.onpopstate = () => {
+        close();
+      };
+      return () => {
+        window.onpopstate = null;
+      };
+    }
+  }, [close, showClose]);
 
   // Enhance TOC with LLM after tocPageText is set
   useEffect(() => {
@@ -665,17 +671,19 @@ export default function UploadArea({
           </div>
         ) : metadata ? (
           <div
-            className="max-w-3xl w-full border-2 rounded-lg flex flex-col items-center  bg-blue-950/10 border-blue-400"
+            className="max-w-3xl max-h-[80vh] overflow-hidden w-full border-2 rounded-lg flex flex-col items-center  bg-blue-950/10 border-blue-400"
             style={{
-              minWidth: "clamp(260px,40vw,600px)",
-              padding: "2rem 1.5rem",
+              minWidth:
+                Math.max(260, Math.min(window.innerWidth * 0.4, 600)) + "px",
+              maxWidth: "98%",
+              padding: "1rem 0.75rem",
             }}
           >
-            <div className="flex flex-col items-center gap-6 w-full ">
-              <p className="text-center font-medium text-[var(--color-text-secondary)]">
+            <div className="flex flex-col items-center gap-8 w-[98%] ">
+              <p className="text-center text-sm font-medium text-[var(--color-text-secondary)]">
                 {uploadedFile.name}
               </p>
-              <div className="flex flex-row w-full items-start gap-8 mb-6 ml-4">
+              <div className="flex flex-row w-full items-start gap-4 mb-6 ml-4">
                 {coverImage && (
                   <div className="w-36 h-50 rounded relative">
                     <Image
@@ -749,9 +757,15 @@ export default function UploadArea({
                         </div>
                       )}
                       {metadata.description && (
-                        <div className="text-xs text-[var(--color-text-secondary)] mt-2">
-                          {metadata.description.length > 200
-                            ? metadata.description.slice(0, 200) + "..."
+                        <div
+                          className="text-xs text-[var(--color-text-secondary)] mt-2"
+                          title={metadata.description}
+                        >
+                          {metadata.description.length > 50
+                            ? metadata.description.slice(
+                                0,
+                                isMobile ? 20 : 100
+                              ) + "..."
                             : metadata.description}
                         </div>
                       )}
@@ -761,10 +775,10 @@ export default function UploadArea({
               </div>
 
               {/* Show extracted chapters after processing */}
-              <div className="w-full flex flex-col items-start mt-4">
+              <div className="w-full flex flex-col items-start mt-0">
                 {/* Action buttons below loading indicator and error */}
-                <div className="self-end flex flex-row gap-6 z-50 mb-2">
-                  <div className="flex flex-col items-start self-center  h-10 mr-4">
+                <div className="self-end  flex flex-row gap-4 z-50 mb-2 max-h-12 min-w-fit sm:max-h-14">
+                  <div className="flex flex-col items-start self-center h-10  rounded-lg px-2 py-1">
                     {isEnhancing && <EnhanceLoadingIndicator />}
                     {enhanceError && (
                       <div className="text-red-400 text-xs mb-2">
@@ -775,16 +789,16 @@ export default function UploadArea({
 
                   {!isEnhancing && !enhancedChapters && (
                     <button
-                      className="px-6 py-2 border-2 border-[var(--color-accent)]/80 rounded-xl hover:bg-[var(--color-accent)]/20 transition-all text-base font-semibold text-[var(--color-accent)]/80 flex items-center gap-2"
+                      className="px-6 py-1.5 border-2 border-[var(--color-accent)]/80 rounded-xl hover:bg-[var(--color-accent)]/20 transition-all text-base font-semibold text-[var(--color-accent)]/80 flex items-center gap-2"
                       onClick={handleProcess}
                       disabled={isEnhancing}
                     >
-                      Extract contents
+                      Process
                     </button>
                   )}
                   {isEnhancing ? (
                     <button
-                      className="px-6 py-2 border-2 border-[var(--color-accent-secondary)]/60 rounded-xl hover:bg-[var(--color-accent-secondary)]/20 transition-all text-base font-semibold text-[var(--color-accent-secondary)]/60 flex items-center gap-2"
+                      className="px-6 py-1.5 border-2 border-[var(--color-accent-secondary)]/60 rounded-xl hover:bg-[var(--color-accent-secondary)]/20 transition-all text-base font-semibold text-[var(--color-accent-secondary)]/60 flex items-center gap-2"
                       onClick={removeFile}
                     >
                       Cancel
@@ -793,14 +807,14 @@ export default function UploadArea({
                     <>
                       {enhancedChapters && enhancedChapters.length > 0 && (
                         <button
-                          className="px-6 py-2 border-2 border-[var(--color-accent-quaternary)] rounded-xl hover:bg-[var(--color-accent-quaternary)]/30 transition-all text-base font-semibold text-[var(--color-accent-quaternary)]"
+                          className="px-6 py-1.5 border-2  border-[var(--color-accent-quaternary)] rounded-xl hover:bg-[var(--color-accent-quaternary)]/30 transition-all text-base font-semibold text-[var(--color-accent-quaternary)]"
                           onClick={addToLibrary}
                         >
                           Add to Library
                         </button>
                       )}
                       <button
-                        className="px-6 py-2 border-2 border-[var(--color-accent-secondary)]/60 rounded-xl hover:bg-[var(--color-accent-secondary)]/20 transition-all text-base font-semibold text-[var(--color-accent-secondary)]/60 flex items-center gap-2"
+                        className="px-6 py-1.5 border-2 border-[var(--color-accent-secondary)]/60 rounded-xl hover:bg-[var(--color-accent-secondary)]/20 transition-all text-base font-semibold text-[var(--color-accent-secondary)]/60 flex items-center gap-2"
                         onClick={removeFile}
                       >
                         Cancel
@@ -814,7 +828,7 @@ export default function UploadArea({
                       Extracted Table of Contents
                     </h3>
                     <div
-                      className="w-full mx-auto overflow-y-auto items-start rounded "
+                      className="w-full mx-auto overflow-y-scroll h-40 sm:h-60 items-start rounded "
                       style={{ maxHeight: "220px" }}
                     >
                       {renderChapters(enhancedChapters)}

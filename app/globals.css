@@ -49,6 +49,7 @@ button {
   );
   --color-bg-secondary: #23272a;
   --color-surface: rgba(255, 255, 255, 0.05);
+  --color-surface-secondary: rgba(30, 41, 59, 0.8);
   --color-muted: #9294ac;
   --color-strong: #c7c7e0;
   --color-border: #55545460;
@@ -69,6 +70,7 @@ button {
   );
   --color-bg-secondary: #98a1c2;
   --color-surface: rgba(30, 41, 59, 0.07);
+  --color-surface-secondary: rgba(152, 161, 194, 0.9);
   --color-muted: #64748b;
   --color-strong: #2b4070;
   --color-border: #8ca1bb;
@@ -77,5 +79,5 @@ button {
   --color-accent: #2563eb;
   --color-accent-secondary: #ef4444;
   --color-accent-tertiary: #fbbf24;
-  --color-accent-quaternary: #3cc2b0;
+  --color-accent-quaternary: #30ad9d;
 }

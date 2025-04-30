@@ -1,10 +1,11 @@
 "use client";
 
-import { Search, PlusCircle } from "lucide-react";
+import { Search, PlusCircle, BookOpenText, BookText } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import UploadArea from "./uploadArea";
 import { useLibrary } from "./hooks/useLibrary";
 import { ExtendedBookMetadata } from "@/types/types";
+import { useResponsive } from "./hooks/useResponsive";
 
 export default function LibraryArea() {
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -23,6 +24,8 @@ export default function LibraryArea() {
       setScrollProgress(progress);
     }
   }, []);
+
+  const { isMobile, isTablet } = useResponsive();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -50,7 +53,7 @@ export default function LibraryArea() {
   const renderBook = (book: ExtendedBookMetadata) => (
     <div key={book.id} className="flex flex-col">
       <div className="mb-2 sm:mb-1.5">
-        <div className="relative overflow-hidden rounded-lg aspect-[1/1.5]">
+        <div className="relative overflow-hidden rounded-lg aspect-[1/1.4] group">
           <div
             className="w-full h-full bg-[var(--color-surface)]/30"
             style={{
@@ -59,9 +62,36 @@ export default function LibraryArea() {
               backgroundPosition: "center",
             }}
           />
+          <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+            <div className="group/box flex flex-col w-[10rem] h-[10rem] justify-center items-center gap-2 text-[var(--color-accent-quaternary)] hover:bg-black/50 bg-transparent hover:h-[97%] hover:w-[97%] rounded-2xl px-2 py-4 text-md font-medium transition-all duration-200">
+              <BookText
+                size={64}
+                className="block group-hover/box:hidden transition-opacity duration-200"
+              />
+              <BookOpenText
+                size={64}
+                className="hidden group-hover/box:block transition-opacity duration-200"
+              />
+              <span className="transition-colors group-hove/box:hidden duration-200  ">
+                Continue ?
+              </span>
+            </div>
+          </div>
         </div>
         {book.progress !== undefined && book.progress > 0 && (
-          <div className="mt-2 px-0.5">
+          <div className="mt-2 px-0.5 relative">
+            {/* floating button to start reading */}
+            {isMobile || isTablet ? (
+              <div className="absolute bottom-5 right-2">
+                <button
+                  className=" flex flex-row items-center gap-2 bg-[var(--color-surface-secondary)] py-1 px-1.5 backdrop-blur-sm rounded-xl font-semibold transition-all"
+                  onClick={() => {}}
+                  title="Start reading"
+                >
+                  Continue <BookOpenText size={20} />
+                </button>
+              </div>
+            ) : null}
             <div className="relative w-full h-2 bg-[var(--color-surface)] rounded-full">
               <div
                 className={`h-full ${
