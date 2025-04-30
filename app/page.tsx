@@ -8,8 +8,8 @@ import LibraryArea from "./libraryArea";
 
 import AnimatedLogo from "../components/AnimatedLogo";
 
-import { useTheme } from "./themeContext";
 import { useLibrary } from "./hooks/useLibrary";
+import { useTheme } from "next-themes";
 
 export default function Home() {
   const [emptyLibrary, setEmptyLibrary] = useState(true);
@@ -17,7 +17,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
 
   const { loading, error, books } = useLibrary();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -54,12 +54,12 @@ export default function Home() {
             (theme === "light" ? (
               <Lightbulb
                 className="w-6 h-6 cursor-pointer"
-                onClick={toggleTheme}
+                onClick={() => setTheme("dark")}
               />
             ) : (
               <LightbulbOff
                 className="w-6 h-6 cursor-pointer"
-                onClick={toggleTheme}
+                onClick={() => setTheme("light")}
               />
             ))}
           <User className="w-6 h-6" />

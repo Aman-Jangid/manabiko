@@ -18,6 +18,7 @@
     "jsonrepair": "^3.12.0",
     "lucide-react": "^0.503.0",
     "next": "15.3.1",
+    "next-themes": "^0.4.6",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.1.91",
     "react": "^19.0.0",

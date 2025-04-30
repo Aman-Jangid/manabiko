@@ -1,3 +1,4 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import {
   Hachi_Maru_Pop,
@@ -8,7 +9,7 @@ import {
 } from "next/font/google";
 import "./globals.css";
 import PdfJsInitializer from "../components/PdfJsInitializer";
-import { ThemeProvider } from "./themeContext";
+import { ThemeProvider } from "next-themes"; // 👈 use from next-themes
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,15 +46,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${hachiMaruPop} ${geistMono.variable} ${kleeOne.variable} ${notoSerifJP.variable} antialiased`}
       >
-        <ThemeProvider>
+        <ThemeProvider
+          attribute="data-theme"
+          defaultTheme="system"
+          enableSystem
+        >
           <PdfJsInitializer />
           {children}
         </ThemeProvider>
