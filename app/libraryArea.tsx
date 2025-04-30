@@ -12,7 +12,6 @@ export default function LibraryArea() {
   const [addingBook, setAddingBook] = useState(false);
   const { books, reload } = useLibrary();
 
-  // Track scroll position and update progress indicator - optimized with useCallback
   const updateScrollProgress = useCallback(() => {
     if (!containerRef.current) return;
 
@@ -48,48 +47,60 @@ export default function LibraryArea() {
     reload();
   };
 
-  // Render book component to reduce complexity in main render
   const renderBook = (book: ExtendedBookMetadata) => (
     <div key={book.id} className="flex flex-col">
-      <div className="relative aspect-[1/1.5] overflow-hidden rounded-lg mb-3 sm:mb-4">
-        <div
-          className={`w-full h-full bg-[var(--color-surface)]/30 rounded-lg`}
-          style={{
-            backgroundImage: `url('${book.coverurl}')`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
+      <div className="mb-2 sm:mb-1.5">
+        <div className="relative overflow-hidden rounded-lg aspect-[1/1.5]">
+          <div
+            className="w-full h-full bg-[var(--color-surface)]/30"
+            style={{
+              backgroundImage: `url('${book.coverurl}')`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
+        </div>
         {book.progress !== undefined && book.progress > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 pt-3 pb-2 px-3 flex flex-col">
-            <div className="flex w-full items-center gap-2 mb-1.5">
-              <div className="w-full bg-gray-700 rounded-full h-1.5">
-                <div
-                  className="bg-blue-500 h-1.5 rounded-full"
-                  style={{ width: `${book.progress}%` }}
-                  title={`${book.progress}% complete`}
-                />
-              </div>
-              <div className="text-[8px] sm:text-[10px] text-right text-gray-300 whitespace-nowrap">
+          <div className="mt-2 px-0.5">
+            <div className="relative w-full h-2 bg-[var(--color-surface)] rounded-full">
+              <div
+                className={`h-full ${
+                  book.progress < 100 ? "rounded-full" : ""
+                } brightness-125`}
+                style={{
+                  width: `${Math.min(book.progress, 100)}%`,
+                  backgroundColor: `var(--color-accent${
+                    book.progress < 100 ? "" : "-quaternary"
+                  })`,
+                }}
+                title={`${book.progress}% complete`}
+              />
+
+              <div className="absolute right-0 top-3 text-[8px] sm:text-[10px] text-[var(--color-text)] font-semibold">
                 {book.progress}%
               </div>
             </div>
-            {book.lastRead && (
-              <p className="text-gray-400 text-[8px] sm:text-[10px] truncate">
-                Last read · {book.lastRead}
-              </p>
-            )}
           </div>
         )}
       </div>
-      <h3 className="text-sm sm:text-base md:text-lg font-medium truncate text-[var(--color-text)]">
+
+      <div className="w-[50%] px-0.5">
+        <p
+          className="text-[8px] sm:text-[10px] md:text-[10px] truncate text-[var(--color-text-secondary)]"
+          title={book.author}
+        >
+          {book.author}
+        </p>
+      </div>
+      <h3
+        className="text-xs sm:text-sm md:text-base font-semibold truncate text-[var(--color-text)] px-0.5"
+        title={book.title}
+      >
         {book.title}
       </h3>
-      <p className="text-[10px] sm:text-xs md:text-sm truncate text-[var(--color-text-secondary)]">
-        {book.author}
-      </p>
+
       {book.lastRead && book.progress === 0 && (
-        <p className="text-gray-500 text-[8px] sm:text-[10px] md:text-xs mt-1.5 truncate">
+        <p className="text-gray-500 text-[7px] sm:text-[8px] md:text-[10px] mt-1 truncate">
           Last read · {book.lastRead}
         </p>
       )}
@@ -97,80 +108,65 @@ export default function LibraryArea() {
   );
 
   return addingBook ? (
-    <>
-      <UploadArea close={handleCancelAddBook} showClose={true} />
-    </>
+    <UploadArea close={handleCancelAddBook} showClose={true} />
   ) : (
-    <>
-      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 md:p-8 text-white">
-        <header className="flex flex-col sm:flex-row sm:items-center sm:place-content-between gap-5 sm:gap-6 mb-8 sm:mb-10">
+    <div className="w-full max-w-6xl mx-auto p-3 sm:p-4 md:p-5 text-white">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="flex flex-col items-center gap-2">
           <h1
-            className="text-6xl sm:text-6xl md:text-6xl lg:text-7xl font-light text-center sm:text-left sm:mb-0 mb-4 -mt-4 sm:mt-0"
+            className="text-5xl sm:text-6xl font-light text-center sm:text-left sm:mb-0 mb-1 -mt-3 sm:mt-0"
             style={{ color: "var(--color-strong)" }}
             aria-label="Library title"
           >
             Your Books
           </h1>
-          <div className="flex flex-row gap-3">
-            <button
-              className="bg-transparent border rounded-lg p-2.5 hover:bg-[rgba(0,0,0,0.2)] transition-colors flex items-center justify-center"
-              style={{
-                borderColor: "var(--color-border)",
-                color: "var(--color-text)",
-              }}
-              aria-label="Add book"
-              onClick={handleAddBook}
-            >
-              <PlusCircle size={20} />
-            </button>
-            <div className="relative flex-grow">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-text)]"
-                size={18}
-              />
-              <input
-                type="text"
-                className="w-full bg-transparent text-[var(--color-text)] border  rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-600"
-                style={{
-                  borderColor: "var(--color-border)",
-                }}
-                placeholder="Search books..."
-                aria-label="Search books"
-              />
-            </div>
-          </div>
-        </header>
-
-        <div className="relative h-[70vh]">
-          <div
-            ref={containerRef}
-            className="grid grid-cols-2 h-full sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 md:gap-8 overflow-y-auto scrollbar-hide pr-6"
-          >
-            {(books as ExtendedBookMetadata[]).map(renderBook)}
-          </div>
-
-          <div
-            className="absolute right-0 top-0 bottom-0 w-1 sm:w-1.5 rounded-full flex items-center"
-            style={{
-              backgroundColor: "var(--color-surface)",
-            }}
-          >
+          {/* scroll bar */}
+          <div className="w-[66%] sm:block sm:w-full h-1 bg-[var(--color-surface)] rounded-full">
             <div
-              className="absolute w-full rounded-full transition-all duration-150 ease-out"
-              style={{
-                height: `${scrollProgress}%`,
-                top: 0,
-                maxHeight: "100%",
-                backgroundColor: "var(--color-text-secondary)",
-              }}
-              role="progressbar"
-              aria-valuenow={Math.round(scrollProgress)}
-              aria-valuemin={0}
-              aria-valuemax={100}
+              className="h-full bg-[var(--color-text-secondary)] rounded-full"
+              style={{ width: `${scrollProgress}%` }}
             />
           </div>
         </div>
+        <div className="flex flex-row gap-2 mt-4">
+          <button
+            className="bg-transparent border rounded-md p-2 hover:bg-[rgba(0,0,0,0.2)] transition-colors flex items-center justify-center"
+            style={{
+              borderColor: "var(--color-border)",
+              color: "var(--color-text)",
+            }}
+            aria-label="Add book"
+            title="Add new book"
+            onClick={handleAddBook}
+          >
+            <PlusCircle size={18} />
+          </button>
+          <div className="relative flex-grow">
+            <Search
+              className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-[var(--color-text)]"
+              size={16}
+            />
+            <input
+              type="text"
+              className="w-full bg-transparent text-[var(--color-text)] border rounded-md pl-9  pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-600 text-sm"
+              style={{
+                borderColor: "var(--color-border)",
+              }}
+              placeholder="Search books..."
+              aria-label="Search books"
+            />
+          </div>
+        </div>
+      </header>
+
+      <div className="relative h-[68vh]">
+        <div
+          ref={containerRef}
+          className="grid grid-cols-2 h-full sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 overflow-y-auto scrollbar-hide scroll-smooth"
+        >
+          {(books as ExtendedBookMetadata[]).map(renderBook)}
+        </div>
       </div>
-    </>
+    </div>
   );
 }
