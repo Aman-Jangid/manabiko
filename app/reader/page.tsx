@@ -13,10 +13,10 @@ import {
 import { useResponsive } from "../hooks/useResponsive";
 import { useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
+import PDFViewer from "@/components/pdf/PDFViewer";
 
 // pdfjs
 // import PdfJsInitializer from "@/components/PdfJsInitializer";
-import PDFViewer from "@/components/pdf/PDFViewer";
 
 export default function ReaderPage() {
   const [showToc, setShowToc] = useState(false);
@@ -183,10 +183,12 @@ export default function ReaderPage() {
         >
           {/* Floating Toolkit */}
           {/* PDF Viewer */}
-          <PDFViewer
-            pdfUrl={pdfUrl}
-            onPageChange={(page) => setCurrentPage(page)}
-          />
+          <div className="w-full h-full flex items-center justify-center">
+            <PDFViewer
+              pdfUrl={pdfUrl}
+              onPageChange={(page) => setCurrentPage(page)}
+            />
+          </div>
           {/* User edits */}
           <div
             className="w-20 h-20 fixed -bottom-1 -right-1 sm:static z-50 sm:w-[14vw] sm:h-full flex items-center  justify-center"
