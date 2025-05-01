@@ -1,7 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import useResizeObserver from "@react-hook/resize-observer";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
 
@@ -21,23 +20,31 @@ export default function PDFViewer({ pdfUrl, onPageChange }: PDFViewerProps) {
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isBrowser = typeof window !== "undefined";
 
-  // Use the resize observer to update container width
-  useResizeObserver(containerRef, (entry) => {
-    const { width } = entry.contentRect;
-    setContainerWidth(width);
-  });
-
-  // Initialize container width on mount
+  // Use the resize observer to update container width - only in browser
   useEffect(() => {
-    if (containerRef.current) {
-      setContainerWidth(containerRef.current.clientWidth);
-    }
-  }, []);
+    if (!isBrowser || !containerRef.current) return;
+
+    // Set initial width
+    setContainerWidth(containerRef.current.clientWidth);
+
+    // Setup resize observer
+    const observer = new ResizeObserver((entries) => {
+      const { width } = entries[0].contentRect;
+      setContainerWidth(width);
+    });
+
+    observer.observe(containerRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isBrowser]);
 
   // Add effect to apply custom styling to text spans after render
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && isBrowser) {
       // Give the PDF a moment to render
       const timer = setTimeout(() => {
         const textSpans = document.querySelectorAll(
@@ -55,11 +62,11 @@ export default function PDFViewer({ pdfUrl, onPageChange }: PDFViewerProps) {
 
       return () => clearTimeout(timer);
     }
-  }, [isLoading]);
+  }, [isLoading, isBrowser]);
 
   // Track current visible page for navigation
   useEffect(() => {
-    if (!scrollRef.current || !numPages) return;
+    if (!scrollRef.current || !numPages || !isBrowser) return;
 
     const handleScroll = () => {
       if (!scrollRef.current) return;
@@ -103,7 +110,7 @@ export default function PDFViewer({ pdfUrl, onPageChange }: PDFViewerProps) {
     return () => {
       scrollContainer.removeEventListener("scroll", handleScroll);
     };
-  }, [numPages, currentPage, onPageChange]);
+  }, [numPages, currentPage, onPageChange, isBrowser]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
