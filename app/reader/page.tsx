@@ -13,7 +13,6 @@ import {
 import { useResponsive } from "../hooks/useResponsive";
 import { useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
-import PDFViewer from "@/components/pdf/PDFViewer";
 
 // pdfjs
 // import PdfJsInitializer from "@/components/PdfJsInitializer";
@@ -28,9 +27,13 @@ export default function ReaderPage() {
     setShowToc((prev) => !prev);
   };
 
-  const pdfUrl = "/temp/tpp20.pdf";
-
   const [currentPage, setCurrentPage] = useState<number>(1);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  handlePageChange(1);
 
   return (
     <>
@@ -179,14 +182,17 @@ export default function ReaderPage() {
 
         {/* BOOK READER */}
         <main
-          className={`h-full flex flex-row items-center justify-center z-10 bg-[var(--color-bg-secondary)]`}
+          className={`h-full w-full flex flex-row items-center justify-center z-10 bg-[var(--color-bg-secondary)]`}
         >
           {/* Floating Toolkit */}
           {/* PDF Viewer */}
-          <div className="w-full h-full flex items-center justify-center">
-            <PDFViewer
-              pdfUrl={pdfUrl}
-              onPageChange={(page) => setCurrentPage(page)}
+          <div className="h-full w-full">
+            <iframe
+              className="w-[100%] h-[100%]"
+              src="/temp/ctci/Cracking the Coding Interview.html"
+              title="HTML Preview"
+              style={{ border: "none", background: "var(--color-bg)" }}
+              allowFullScreen
             />
           </div>
           {/* User edits */}
