@@ -1,11 +1,5 @@
 import express from "express";
 import multer from "multer";
-import {
-  extractOutline,
-  splitPdfByChapters,
-  convertPdfToHtml,
-  replaceStaticFiles,
-} from "./processPdf.js";
 import { processBookmark } from "./processBookmark.js";
 import path from "path";
 import fs from "fs/promises";
@@ -31,47 +25,10 @@ app.post("/upload", upload.single("pdf"), async (req, res) => {
   });
 });
 
-// Process PDF (split, outline, convert)
-app.post("/process", async (req, res) => {
-  const { filePath, docId } = req.body;
-  if (!filePath || !docId) {
-    return res.status(400).json({ error: "filePath and docId required" });
-  }
-  try {
-    const outlinePath = filePath.replace(/\.pdf$/, "_outline.json");
-
-    const splitDir = `/data/split/${docId}`;
-    const outputDir = `/data/output/${docId}`;
-
-    await fs.mkdir(splitDir, { recursive: true });
-    await fs.mkdir(outputDir, { recursive: true });
-
-    await extractOutline(filePath, outlinePath);
-
-    const chapters = await splitPdfByChapters(filePath, outlinePath, splitDir);
-
-    for (let i = 0; i < chapters.length; i++) {
-      const chapter = chapters[i];
-      const htmlOutDir = path.join(outputDir, `chapter_${i + 1}`);
-      await fs.mkdir(htmlOutDir, { recursive: true });
-
-      await convertPdfToHtml(chapter.pdfPath, htmlOutDir);
-
-      await replaceStaticFiles(htmlOutDir);
-
-      chapter.htmlDir = htmlOutDir;
-    }
-
-    res.json({ status: "processing complete", chapters });
-  } catch (err) {
-    console.error("[PROCESS ERROR]", err);
-    res.status(500).json({ error: err.toString() });
-  }
-});
-
 // Process PDF with bookmarks
 app.post("/process-bookmark", async (req, res) => {
-  const { filePath, docId } = req.body;
+  const { filePath } = req.body;
+  const docId = filePath.split("/").pop().split(".")[0];
   if (!filePath || !docId) {
     return res.status(400).json({ error: "filePath and docId required" });
   }

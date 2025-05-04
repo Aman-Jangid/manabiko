@@ -66,7 +66,7 @@ export async function processBookmark(pdfPath, outputDir) {
       )} /data/${path.relative(HOST_DATA_DIR, outlineJsonPath)}`
     );
 
-    // Read the outline file to get bookmarks
+    // Read the outline file to get bookmarks and metadata
     let outline = [];
     try {
       const outlineContent = await fs.readFile(outlineJsonPath, "utf8");
@@ -99,7 +99,8 @@ export async function processBookmark(pdfPath, outputDir) {
 
     for (let i = 0; i < splitPdfPaths.length; i++) {
       const pdfFile = splitPdfPaths[i];
-      const chapterName = `chapter_${i + 1}`;
+
+      const chapterName = pdfFile.split("/").pop().split(".")[0];
       const chapterDir = path.join(htmlDir, chapterName.replaceAll(" ", "_"));
 
       // Step 3.0: Create a directory for the chapter
@@ -123,7 +124,7 @@ export async function processBookmark(pdfPath, outputDir) {
 
       // Step 3.2: Replace static files in HTML files (optional)
       try {
-        const staticDir = path.join(HOST_DATA_DIR, "scripts", "static");
+        const staticDir = path.join(HOST_DATA_DIR, "static");
         const staticFiles = await fs.readdir(staticDir);
 
         for (const staticFile of staticFiles) {
@@ -139,8 +140,8 @@ export async function processBookmark(pdfPath, outputDir) {
     // Step 4: Return the JSON object with the required structure
     const result = {
       [filename]: {
-        metadata: {},
-        outline: outline,
+        metadata: outline.header,
+        outline: outline.bookmarks,
         filepaths: {
           pdf: splitPdfPaths,
           html: htmlPaths,

@@ -33,8 +33,6 @@ export default function ReaderPage() {
     setCurrentPage(page);
   };
 
-  handlePageChange(1);
-
   return (
     <>
       {/* <PdfJsInitializer /> */}
@@ -189,7 +187,7 @@ export default function ReaderPage() {
           <div className="h-full w-full">
             <iframe
               className="w-[100%] h-[100%]"
-              src="/temp/ctci/Cracking the Coding Interview.html"
+              src="/temp/ga2/Chapter_1_Introduction_to_Algorithms.html"
               title="HTML Preview"
               style={{ border: "none", background: "var(--color-bg)" }}
               allowFullScreen
