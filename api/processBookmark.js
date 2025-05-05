@@ -8,6 +8,11 @@ const PDFCPU_IMAGE = "atrus/pdfcpu:latest";
 const PDF2HTMLEX_IMAGE =
   "pdf2htmlex/pdf2htmlex:0.18.8.rc2-master-20200820-alpine-3.12.0-x86_64";
 
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 /**
  * Execute a command in a promise wrapper
  * @param {string} cmd Command to execute
@@ -124,13 +129,22 @@ export async function processBookmark(pdfPath, outputDir) {
 
       // Step 3.2: Replace static files in HTML files (optional)
       try {
-        const staticDir = path.join(HOST_DATA_DIR, "static");
+        // Use the correct path to static directory in api folder instead of data folder
+        const staticDir = path.join(__dirname, "static");
+
+        console.log("STATIC DIR: ", staticDir);
+
         const staticFiles = await fs.readdir(staticDir);
 
         for (const staticFile of staticFiles) {
           const sourcePath = path.join(staticDir, staticFile);
           const targetPath = path.join(chapterDir, staticFile);
-          await fs.copyFile(sourcePath, targetPath);
+          // Force overwrite of existing files with the same name
+          await fs.copyFile(
+            sourcePath,
+            targetPath,
+            fs.constants.COPYFILE_FICLONE
+          );
         }
       } catch (err) {
         console.warn("Could not replace static files:", err.message);
@@ -153,6 +167,15 @@ export async function processBookmark(pdfPath, outputDir) {
     // Save the result to a json file
     const resultPath = path.join(outputDir, `${filename}_result.json`);
     await fs.writeFile(resultPath, JSON.stringify(result, null, 2));
+
+    // cleanup : remove the split pdfs
+    // for (const pdfFile of splitPdfPaths) {
+    //   try {
+    //     await fs.unlink(pdfFile);
+    //   } catch (err) {
+    //     console.warn("Could not delete split PDF file:", err.message);
+    //   }
+    // }
 
     return result;
   } catch (error) {

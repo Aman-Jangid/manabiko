@@ -3,6 +3,37 @@ body {
   padding: 0;
 }
 
+/* background image */
+.bi {
+  /* FILTER:sepia */
+  /* filter: sepia(75%) contrast(95%) brightness(85%) saturate(90%); */
+
+  /* FILTER:blue */
+  /* filter: brightness(0.4) contrast(1.2) sepia(100%) hue-rotate(180deg)
+    saturate(120%); */
+
+  /* FILTER:black */
+  filter: invert(1) brightness(0.5) contrast(1.2) sepia(100%) hue-rotate(180deg)
+    saturate(120%);
+}
+
+/* text overlay */
+
+.t,
+.t > span {
+  /* FILTER:sepia */
+  /* filter: brightness(0.9) sepia(100%) !important; */
+
+  /* FILTER:blue */
+  /* color: #140f68 !important;
+  filter: brightness(0.9) contrast(1.2) sepia(100%) hue-rotate(180deg)
+    saturate(120%) !important;
+  text-shadow: 0 0 0px rgba(0, 0, 0, 0.8) !important; */
+
+  /* FILTER:black */
+  color: white !important;
+}
+
 #sidebar {
   display: none;
   position: absolute;

@@ -48,20 +48,35 @@ app.post("/process-bookmark", async (req, res) => {
   }
 });
 
+// export type fileType = "pdf" | "html";
+
 // Download HTML chapter
-app.get("/download/:docId/:chapter", async (req, res) => {
-  const { docId, chapter } = req.params;
-  const htmlDir = `/data/output/${docId}/chapter_${chapter}`;
-  // Find the first .html file in the directory
+app.get("/download/:url", async (req, res) => {
+  const { url } = req.params;
   try {
-    const files = await fs.readdir(htmlDir);
+    const files = await fs.readdir(url);
     const htmlFile = files.find((f) => f.endsWith(".html"));
     if (!htmlFile) return res.status(404).send("HTML not found");
-    res.sendFile(path.join(htmlDir, htmlFile));
+    // send all files in the directory
+    const filePath = path.join(url, htmlFile);
+    const fileStream = fs.createReadStream(filePath);
+    res.setHeader("Content-Type", "text/html");
+    res.setHeader("Content-Disposition", `attachment; filename=${htmlFile}`);
+    fileStream.pipe(res);
+    fileStream.on("error", (err) => {
+      console.error("[DOWNLOAD ERROR]", err);
+      res.status(500).send("Error reading file");
+    });
+    fileStream.on("end", () => {
+      console.log("[DOWNLOAD COMPLETE]", htmlFile);
+    });
   } catch {
     res.status(404).send("HTML not found");
   }
 });
+
+// TODO: Implement this endpoint
+// app.get("/outline/:url")
 
 app.listen(8000, () => {
   console.log("API server running on port 8000");
