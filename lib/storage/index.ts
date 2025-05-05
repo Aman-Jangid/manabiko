@@ -1,10 +1,10 @@
 export interface StorageProvider {
-  upload(file: Buffer | Blob, filename: string): Promise<string>;
-  download(url: string): Promise<Buffer | Blob>;
+  upload(file: File | Buffer, filename: string): Promise<string>;
+  download(url: string): Promise<Buffer>;
   delete(url: string): Promise<void>;
   list(): Promise<string[]>;
+  getFilePath(filename: string): string;
 }
-
 let storageProvider: StorageProvider;
 
 export function setStorageProvider(provider: StorageProvider): void {

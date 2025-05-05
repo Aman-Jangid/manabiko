@@ -425,7 +425,6 @@ export default function UploadArea({
     const formData = new FormData();
     formData.append("file", uploadedFile);
     formData.append("filename", uploadedFile.name);
-    // formData.append("fileHash", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); // later calculate hash too
     const res = await fetch("/api/file/upload", {
       method: "POST",
       body: formData,

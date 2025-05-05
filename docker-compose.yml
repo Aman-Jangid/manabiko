@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: pdfdb
+      POSTGRES_USER: manabiko
+      POSTGRES_PASSWORD: manabiko
+      POSTGRES_DB: manabiko_library
     volumes:
       - pgdata:/var/lib/postgresql/data
 

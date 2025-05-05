@@ -64,4 +64,8 @@ export const localStorageProvider: StorageProvider = {
       throw new Error("Failed to list files");
     }
   },
+
+  getFilePath(filename: string): string {
+    return `/uploads/${filename}`;
+  },
 };
