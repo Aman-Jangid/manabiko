@@ -3,9 +3,22 @@ import multer from "multer";
 import { processBookmark } from "./processBookmark.js";
 import path from "path";
 import fs from "fs/promises";
+import { existsSync, mkdirSync } from "fs";
 
 const app = express();
-const upload = multer({ dest: "/data/input" });
+
+// Ensure upload directory exists
+const uploadDir = "/data/input";
+if (!existsSync(uploadDir)) {
+  try {
+    mkdirSync(uploadDir, { recursive: true });
+    console.log(`Created upload directory: ${uploadDir}`);
+  } catch (err) {
+    console.error(`Failed to create upload directory: ${err.message}`);
+  }
+}
+
+const upload = multer({ dest: uploadDir });
 
 app.use(express.json());
 
@@ -16,17 +29,29 @@ app.get("/health", (req, res) => {
 
 // Upload PDF
 app.post("/upload", upload.single("pdf"), async (req, res) => {
-  // Rename file to have .pdf extension
-  const oldPath = req.file.path;
-  const newPath = oldPath + ".pdf";
-  await fs.rename(oldPath, newPath);
-  res.json({
-    file: { ...req.file, path: newPath, filename: path.basename(newPath) },
-  });
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    // Rename file to have .pdf extension
+    const oldPath = req.file.path;
+    const newPath = oldPath + ".pdf";
+    await fs.rename(oldPath, newPath);
+
+    console.log(`File uploaded and renamed: ${newPath}`);
+
+    res.json({
+      file: { ...req.file, path: newPath, filename: path.basename(newPath) },
+    });
+  } catch (err) {
+    console.error("[UPLOAD ERROR]", err);
+    res.status(500).json({ error: err.toString() });
+  }
 });
 
 // Process PDF with bookmarks
-app.post("/process-bookmark", async (req, res) => {
+app.post("/process", async (req, res) => {
   const { filePath } = req.body;
   const docId = filePath.split("/").pop().split(".")[0];
   if (!filePath || !docId) {
@@ -47,8 +72,6 @@ app.post("/process-bookmark", async (req, res) => {
     res.status(500).json({ error: err.toString() });
   }
 });
-
-// export type fileType = "pdf" | "html";
 
 // Download HTML chapter
 app.get("/download/:url", async (req, res) => {
@@ -75,8 +98,28 @@ app.get("/download/:url", async (req, res) => {
   }
 });
 
-// TODO: Implement this endpoint
-// app.get("/outline/:url")
+// Implementation of the outline endpoint
+app.get("/outline/:url", async (req, res) => {
+  const { url } = req.params;
+  try {
+    // Extract chapter name from the URL
+    const urlParts = url.split("/");
+    const chapterName = urlParts[urlParts.length - 1]; // Get the last part of the URL
+
+    // Look for the outline JSON file
+    const outlineFile = `${chapterName}_outline.json`;
+    const outlinePath = path.join(url, outlineFile);
+
+    // Check if file exists
+    const outlineData = await fs.readFile(outlinePath, "utf8");
+    const outline = JSON.parse(outlineData);
+
+    res.json(outline);
+  } catch (err) {
+    console.error("[OUTLINE ERROR]", err);
+    res.status(404).json({ error: "Outline not found" });
+  }
+});
 
 app.listen(8000, () => {
   console.log("API server running on port 8000");

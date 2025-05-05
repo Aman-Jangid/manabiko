@@ -35,6 +35,52 @@ const execPromise = (cmd) => {
 };
 
 /**
+ * Extract chapter-specific outline from full outline
+ * @param {Array} fullOutline Complete outline object with bookmarks
+ * @param {string} chapterName Name of the chapter to extract outline for
+ * @returns {Object} Chapter-specific outline with its children in the required format
+ */
+const extractChapterOutline = (fullOutline, chapterName) => {
+  // Recursive search and formatting
+  const findChapter = (bookmarks) => {
+    if (!Array.isArray(bookmarks)) return null;
+
+    for (const bookmark of bookmarks) {
+      const cleanTitle = bookmark.title?.trim();
+      const targetTitle = chapterName.replaceAll("_", " ").trim();
+
+      if (cleanTitle === targetTitle) {
+        return formatChapter(bookmark); // Match found
+      }
+
+      if (bookmark.kids) {
+        const found = findChapter(bookmark.kids);
+        if (found) return found;
+      }
+    }
+
+    return null;
+  };
+
+  // Formats a chapter and its children recursively
+  const formatChapter = (bookmark) => ({
+    title: bookmark.title,
+    page: bookmark.page,
+    kids: bookmark.kids ? bookmark.kids.map(formatChapter) : [],
+  });
+
+  const chapter = findChapter(fullOutline.bookmarks);
+
+  return (
+    chapter || {
+      title: chapterName,
+      page: 1,
+      kids: [],
+    }
+  );
+};
+
+/**
  * Process a PDF file using bookmarks to split it into chapters and convert to HTML
  * @param {string} pdfPath Full path to the PDF file
  * @param {string} outputDir Directory to store the output files
@@ -76,6 +122,10 @@ export async function processBookmark(pdfPath, outputDir) {
     try {
       const outlineContent = await fs.readFile(outlineJsonPath, "utf8");
       outline = JSON.parse(outlineContent);
+      console.log(
+        "Outline structure:",
+        JSON.stringify(outline.bookmarks[0], null, 2)
+      );
     } catch (err) {
       console.warn(
         "Could not read outline or no bookmarks present:",
@@ -105,7 +155,7 @@ export async function processBookmark(pdfPath, outputDir) {
     for (let i = 0; i < splitPdfPaths.length; i++) {
       const pdfFile = splitPdfPaths[i];
 
-      const chapterName = pdfFile.split("/").pop().split(".")[0];
+      const chapterName = pdfFile.split("/").pop().replace(".pdf", "");
       const chapterDir = path.join(htmlDir, chapterName.replaceAll(" ", "_"));
 
       // Step 3.0: Create a directory for the chapter
@@ -149,6 +199,28 @@ export async function processBookmark(pdfPath, outputDir) {
       } catch (err) {
         console.warn("Could not replace static files:", err.message);
       }
+
+      // Step 3.3: Create chapter-specific outline JSON
+      try {
+        // Extract chapter outline from the full outline
+        const chapterOutline = extractChapterOutline(outline, chapterName);
+
+        // Save the chapter outline to a JSON file in the chapter directory
+        const chapterOutlinePath = path.join(
+          chapterDir,
+          `${chapterName}_outline.json`
+        );
+        await fs.writeFile(
+          chapterOutlinePath,
+          JSON.stringify(chapterOutline, null, 2)
+        );
+        console.log(`Created chapter outline for "${chapterName}"`);
+      } catch (err) {
+        console.warn(
+          `Could not create chapter outline for "${chapterName}":`,
+          err.message
+        );
+      }
     }
 
     // Step 4: Return the JSON object with the required structure
@@ -169,13 +241,13 @@ export async function processBookmark(pdfPath, outputDir) {
     await fs.writeFile(resultPath, JSON.stringify(result, null, 2));
 
     // cleanup : remove the split pdfs
-    // for (const pdfFile of splitPdfPaths) {
-    //   try {
-    //     await fs.unlink(pdfFile);
-    //   } catch (err) {
-    //     console.warn("Could not delete split PDF file:", err.message);
-    //   }
-    // }
+    for (const pdfFile of splitPdfPaths) {
+      try {
+        await fs.unlink(pdfFile);
+      } catch (err) {
+        console.warn("Could not delete split PDF file:", err.message);
+      }
+    }
 
     return result;
   } catch (error) {
