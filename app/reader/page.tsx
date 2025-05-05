@@ -1,7 +1,7 @@
 "use client";
 import { ChevronDown, User } from "lucide-react";
 import { useResponsive } from "../hooks/useResponsive";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useRouter } from "next/navigation";
 import TOCTree from "@/components/TableOfContents";
@@ -103,6 +103,11 @@ export default function ReaderPage() {
   const [activePage, setActivePage] = useState(0);
   const [showNote, setShownote] = useState(1);
   const [showNotes, setShowNotes] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const { isMobile } = useResponsive();
   const router = useRouter();
@@ -158,7 +163,7 @@ export default function ReaderPage() {
     setShownote(note);
   };
 
-  return (
+  return !hasMounted ? null : (
     <div
       className={`w-full h-[100vh] font-[family-name:var(--font-geist-sans)] grid sm:grid-rows-1 grid-rows-2 relative overflow-hidden transition-all duration-200`}
       style={{
