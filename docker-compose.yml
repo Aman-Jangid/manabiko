@@ -14,7 +14,7 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/data
-      - ./scripts/static:/app/static
+      - ./api/static:/app/static
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - postgres

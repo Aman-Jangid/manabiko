@@ -4,9 +4,10 @@ import path from "path";
 
 const HOST_DATA_DIR =
   "/home/aman/Documents/Code/projects/manabiko/clone/manabiko/data";
-const PDFCPU_IMAGE = "atrus/pdfcpu:latest";
 const PDF2HTMLEX_IMAGE =
   "pdf2htmlex/pdf2htmlex:0.18.8.rc2-master-20200820-alpine-3.12.0-x86_64";
+const PDFCPU_IMAGE = "atrus/pdfcpu:latest";
+// const PYMUPDF_IMAGE = "ludy87/pymupdf:latest"; //TODO: ADD AS FALLBACK
 
 import { fileURLToPath } from "url";
 
@@ -177,27 +178,30 @@ export async function processBookmark(pdfPath, outputDir) {
         htmlPaths.push(path.join(chapterDir, htmlFile));
       }
 
-      // Step 3.2: Replace static files in HTML files (optional)
+      // Step 3.2: Replace static files in HTML files
       try {
         // Use the correct path to static directory in api folder instead of data folder
         const staticDir = path.join(__dirname, "static");
 
-        console.log("STATIC DIR: ", staticDir);
+        console.log(
+          `Copying static files from ${staticDir} to ${chapterDir}...`
+        );
 
         const staticFiles = await fs.readdir(staticDir);
 
         for (const staticFile of staticFiles) {
           const sourcePath = path.join(staticDir, staticFile);
           const targetPath = path.join(chapterDir, staticFile);
+
+          const stats = await fs.stat(sourcePath);
           // Force overwrite of existing files with the same name
-          await fs.copyFile(
-            sourcePath,
-            targetPath,
-            fs.constants.COPYFILE_FICLONE
-          );
+          if (stats.isFile()) {
+            await fs.copyFile(sourcePath, targetPath);
+            console.log(`Copied ${staticFile} to ${chapterDir}`);
+          }
         }
       } catch (err) {
-        console.warn("Could not replace static files:", err.message);
+        console.error(`Error copying static files to ${chapterDir}:`, err);
       }
 
       // Step 3.3: Create chapter-specific outline JSON
