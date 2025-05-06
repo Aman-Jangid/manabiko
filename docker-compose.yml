@@ -1,12 +1,16 @@
 services:
   postgres:
     image: postgres:16
+    ports:
+      - "5433:5432" # used this port cause the default port 5432 is used by local postgres service
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    container_name: manabiko-postgres
     environment:
       POSTGRES_USER: manabiko
       POSTGRES_PASSWORD: manabiko
       POSTGRES_DB: manabiko_library
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
 
   api:
     build: ./api
