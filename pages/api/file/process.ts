@@ -1,52 +1,50 @@
+// pages/api/process-file.ts
 import axios from "axios";
-import { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { filepath } = req.body;
-  if (!filepath) {
-    return res.status(400).json({ error: "File path is required" });
-  }
-  // res.data.file.path
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const { filepath } = req.body;
+
+  if (!filepath || typeof filepath !== "string") {
+    return res
+      .status(400)
+      .json({ error: "File path is required and must be a string" });
+  }
+
+  const expressApiUrl = process.env.EXPRESS_API_URL || "http://localhost:8000";
+
   try {
-    const expressApiUrl =
-      process.env.EXPRESS_API_URL || "http://localhost:8000";
     const apiResponse = await axios.post(
-      expressApiUrl + "/process",
+      `${expressApiUrl}/process`,
       { filePath: filepath },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+      { headers: { "Content-Type": "application/json" } }
     );
 
-    if (apiResponse.status !== 200) {
-      return res
-        .status(apiResponse.status)
-        .json({ error: "Failed to process file" });
-    }
+    const { processedData } = apiResponse.data || {};
 
-    const { data } = apiResponse;
-    if (!data) {
-      return res.status(500).json({ error: "No data returned from API" });
-    }
-
-    const { processedData } = data;
     if (!processedData) {
       return res
-        .status(500)
+        .status(502)
         .json({ error: "No processed data returned from API" });
     }
+
     return res.status(200).json({ processedData });
-  } catch (error) {
-    console.error("Error processing file:", error);
-    return res.status(500).json({ error: "Failed to process file" });
+  } catch (error: any) {
+    console.error(
+      "Error processing file:",
+      error?.response?.data || error.message
+    );
+
+    const status = error?.response?.status || 500;
+    const message = error?.response?.data?.error || "Failed to process file";
+
+    return res.status(status).json({ error: message });
   }
 }

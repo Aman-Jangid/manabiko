@@ -52,3 +52,18 @@ export type EnhancedChapter = {
   topics?: EnhancedChapter[];
   children?: EnhancedChapter[];
 };
+
+export interface BookDocument {
+  title: string;
+  author: string;
+  isbn: string;
+  coverUrl: string;
+  lastOpened: Date;
+  progress: number;
+  filePath: string;
+  tableOfContents: EnhancedChapter[];
+  description: string;
+  fileHash: string;
+  uploadedById: string;
+  fileName?: string; // For comparison with duplicates
+}
