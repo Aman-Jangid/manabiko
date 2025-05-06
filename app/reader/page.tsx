@@ -4,11 +4,11 @@ import { useResponsive } from "../hooks/useResponsive";
 import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useRouter } from "next/navigation";
-import TOCTree from "@/components/TableOfContents";
-import NotesContainerMobile from "@/components/NotesContainerMobile";
-import NotesContainer from "@/components/NotesContainer";
-import UserEditsMobile from "@/components/UserEditsMobile";
-import UserEdits from "@/components/UserEdits";
+import TOCTree from "@/components/reader/TableOfContents";
+import NotesContainerMobile from "@/components/reader/NotesContainerMobile";
+import NotesContainer from "@/components/reader/NotesContainer";
+import UserEditsMobile from "@/components/reader/UserEditsMobile";
+import UserEdits from "@/components/reader/UserEdits";
 
 const toc = [
   {
