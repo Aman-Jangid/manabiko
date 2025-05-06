@@ -233,7 +233,6 @@ export async function processBookmark(pdfPath, outputDir) {
         metadata: outline.header,
         outline: outline.bookmarks,
         filepaths: {
-          pdf: splitPdfPaths,
           html: htmlPaths,
           src: pdfPath,
         },

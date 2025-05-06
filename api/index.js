@@ -63,10 +63,12 @@ app.post("/process", async (req, res) => {
     // Process the PDF using the processBookmark function
     const result = await processBookmark(filePath, outputDir);
 
-    res.json({
-      status: "processing complete",
-      result,
-    });
+    res
+      .json({
+        status: "processing complete",
+        result,
+      })
+      .status(200);
   } catch (err) {
     console.error("[PROCESS-BOOKMARK ERROR]", err);
     res.status(500).json({ error: err.toString() });
