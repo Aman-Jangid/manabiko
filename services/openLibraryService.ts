@@ -1,5 +1,4 @@
-import { BookInfo } from "../utils/BookTypes";
-import { BookMetadata } from "@/types/types";
+import { BookInfo, BookMetadata } from "@/types/types";
 
 interface OpenLibraryData {
   title?: string;

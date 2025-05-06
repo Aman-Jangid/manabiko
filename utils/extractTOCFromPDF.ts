@@ -1,4 +1,4 @@
-import { TOCItem } from "./BookTypes";
+import { TOCItem } from "@/types/types";
 import { setupPdfJsWorker } from "./pdfjs-setup";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 

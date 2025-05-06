@@ -1,4 +1,4 @@
-import { TOCItem } from "./BookTypes";
+import { TOCItem } from "@/types/types";
 
 // Helper to resolve page number from destination
 export async function getPageNumberFromDest(
