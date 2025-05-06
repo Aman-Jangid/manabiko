@@ -224,9 +224,11 @@ export default function ReaderPage() {
                   ? {
                       color: "var(--color-text-secondary)",
                     }
-                  : { color: "var(--color-accent)", opacity: 0.8 }
+                  : { color: "var(--color-accent )", opacity: 0.8 }
               }
-              onClick={() => setShowNotes((prev) => !prev)}
+              onClick={
+                isMobile ? () => setShowNotes((prev) => !prev) : () => {}
+              }
             >
               Table of contents{"  "}
               <span className="ml-1 text-[var(--color-text)] bg-[var(--color-accent)]/40 rounded-full px-1.5 py-0.5 text-[10px] sm:text-[12px] sm:px-2 sm-py-1 font-semibold">
@@ -278,7 +280,7 @@ export default function ReaderPage() {
                   : "h-full overflow-y-auto"
               }`}
             >
-              {showNotes ? (
+              {isMobile && showNotes ? (
                 <NotesContainerMobile
                   notes={notes}
                   handleAddNote={() => {}}
