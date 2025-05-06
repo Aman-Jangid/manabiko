@@ -1,8 +1,8 @@
-# Manabiko
+# 📚 Manabiko
 
 A book progress tracker application that helps you manage and track your reading progress.
 
-## Features
+## ✨ Features
 
 - Automatic metadata extraction & fetching
 - Table of contents extraction
@@ -11,15 +11,15 @@ A book progress tracker application that helps you manage and track your reading
 
 > **Note:** Compatibility may vary depending on PDF format. Works best with newer, well-formatted PDFs.
 
-## Getting Started
+## 🚀 Getting Started
 
-### Prerequisites
+### 📋 Prerequisites
 
 - Node.js (v18 or later)
 - npm or yarn
 - Docker & Docker Compose
 
-### Installation
+### 💻 Installation
 
 1. Clone the repository
 
@@ -36,7 +36,7 @@ npm install
 yarn install
 ```
 
-### Database Setup
+### 🗄️ Database Setup
 
 Initialize and synchronize the database:
 
@@ -45,7 +45,7 @@ npx prisma generate
 npx prisma db push
 ```
 
-### Start Services
+### 🔌 Start Services
 
 > **Important:** Ensure Docker & Docker Compose are installed and properly configured on your system
 
@@ -60,7 +60,7 @@ This will start:
 - **manabiko-api** - PDF processing service
 - **postgres:16** - Database server
 
-### Run Development Server
+### 🏃‍♂️ Run Development Server
 
 Start the development server:
 
@@ -70,4 +70,4 @@ npm run dev
 yarn dev
 ```
 
-The application will be available at [http://localhost:3000](http://localhost:3000)
+🌐 The application will be available at [http://localhost:3000](http://localhost:3000)
