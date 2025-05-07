@@ -1,6 +1,5 @@
-import { BookMetadata } from "@/types/types";
+import { BookDocument, BookMetadata } from "@/types/types";
 import { useEffect, useState } from "react";
-import { BookDocument } from "../uploadArea";
 
 export function useLibrary() {
   const [books, setBooks] = useState<BookMetadata[]>([]);

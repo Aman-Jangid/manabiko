@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   images: {
     domains: ["covers.openlibrary.org"],
   },
+  output: "standalone",
 };
 
 export default nextConfig;

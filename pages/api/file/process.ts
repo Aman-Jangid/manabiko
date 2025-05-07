@@ -36,15 +36,17 @@ export default async function handler(
     }
 
     return res.status(200).json({ processedData });
-  } catch (error: any) {
-    console.error(
-      "Error processing file:",
-      error?.response?.data || error.message
-    );
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error(
+        "Error processing file:",
+        error?.response?.data || error.message
+      );
 
-    const status = error?.response?.status || 500;
-    const message = error?.response?.data?.error || "Failed to process file";
+      const status = error?.response?.status || 500;
+      const message = error?.response?.data?.error || "Failed to process file";
 
-    return res.status(status).json({ error: message });
+      return res.status(status).json({ error: message });
+    }
   }
 }

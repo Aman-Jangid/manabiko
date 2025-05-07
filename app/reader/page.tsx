@@ -88,7 +88,7 @@ const notes = [
   },
 ];
 
-export enum Tool {
+enum Tool {
   HIGHLIGHTER = "HIGHLIGHTER",
   STICKY_NOTE = "STICKY_NOTE",
   PEN_TOOL = "PEN_TOOL",

@@ -1,4 +1,3 @@
-import { Tool } from "@/app/reader/page";
 import {
   Highlighter,
   PencilRuler,
@@ -9,6 +8,14 @@ import {
   XIcon,
 } from "lucide-react";
 import { JSX } from "react";
+
+enum Tool {
+  HIGHLIGHTER = "HIGHLIGHTER",
+  STICKY_NOTE = "STICKY_NOTE",
+  PEN_TOOL = "PEN_TOOL",
+  TIMER = "TIMER",
+  SWATCH_BOOK = "SWATCH_BOOK",
+}
 
 type Props = {
   showToolkit: boolean;
