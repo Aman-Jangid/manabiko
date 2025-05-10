@@ -42,7 +42,6 @@ export function useLibrary() {
 
   useEffect(() => {
     loadLibrary();
-    console.log("Library loaded:", books);
   }, []);
 
   const addBook = async (book: BookDocument) => {

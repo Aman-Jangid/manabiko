@@ -1,4 +1,5 @@
 // app/layout.tsx
+import { getServerSession } from "next-auth";
 import type { Metadata } from "next";
 import {
   Hachi_Maru_Pop,
@@ -9,7 +10,9 @@ import {
 } from "next/font/google";
 import "./globals.css";
 import PdfJsInitializer from "../components/PdfJsInitializer";
-import { ThemeProvider } from "next-themes"; // 👈 use from next-themes
+import { authOptions } from "@/pages/api/auth/[...nextauth]";
+import AuthSessionProvider from "@/components/auth/SessionProvider";
+import ThemeProviderWrapper from "@/components/theme/ThemeProviderWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,24 +47,24 @@ export const metadata: Metadata = {
   description: "A book progress tracker",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${hachiMaruPop} ${geistMono.variable} ${kleeOne.variable} ${notoSerifJP.variable} antialiased`}
       >
-        <ThemeProvider
-          attribute="data-theme"
-          defaultTheme="system"
-          enableSystem
-        >
-          <PdfJsInitializer />
-          {children}
-        </ThemeProvider>
+        <AuthSessionProvider session={session}>
+          <ThemeProviderWrapper>
+            <PdfJsInitializer />
+            {children}
+          </ThemeProviderWrapper>
+        </AuthSessionProvider>
       </body>
     </html>
   );

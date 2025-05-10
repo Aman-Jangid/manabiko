@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User } from "lucide-react";
 
 import UploadArea from "./uploadArea";
 import LibraryArea from "./libraryArea";
@@ -10,6 +9,7 @@ import AnimatedLogo from "../components/AnimatedLogo";
 
 import { useLibrary } from "./hooks/useLibrary";
 import ThemeToggle from "@/components/ThemeToggle";
+import UserAvatar from "@/components/auth/UserAvatar";
 
 export default function Home() {
   const [emptyLibrary, setEmptyLibrary] = useState(true);
@@ -45,11 +45,11 @@ export default function Home() {
         </h1>
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          <User className="w-6 h-6" />
+          <UserAvatar />
         </div>
       </header>
 
-      <main className="w-full grow flex items-center justify-center row-span-2 z-10">
+      <main className="w-full grow flex items-center justify-center row-span-2">
         {showLoading ? (
           <AnimatedLogo />
         ) : !loading && error ? (
