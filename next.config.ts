@@ -4,8 +4,11 @@ const nextConfig: NextConfig = {
   /* config options here */
   images: {
     domains: ["covers.openlibrary.org"],
+    unoptimized: true,
   },
-  output: "standalone",
+  output: "export",
+  basePath: process.env.NODE_ENV === "production" ? "/manabiko" : "",
+  trailingSlash: true,
 };
 
 export default nextConfig;
