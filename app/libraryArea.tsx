@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useLibrary } from "./hooks/useLibrary";
-import { ExtendedBookMetadata } from "@/types/types";
+import { ExtendedBookMetadata, BookMetadata } from "@/types/types";
 
 import LibraryHeader from "@/components/library/LibraryHeader";
 import LibraryControls from "@/components/library/LibraryControls";
@@ -37,14 +37,34 @@ export default function LibraryArea() {
     console.log("Selected book:", book.title);
   };
 
+  // Convert BookMetadata to ExtendedBookMetadata
+  const extendedBooks: ExtendedBookMetadata[] = books.map(
+    (book: BookMetadata) => ({
+      id: book.id.toString(),
+      title: book.title,
+      author: book.author,
+      isbn: book.isbn,
+      description: book.description,
+      coverurl: book.coverurl,
+      filepath: book.filepath,
+      filehash: book.filehash,
+      tableofcontents: book.tableofcontents,
+      progress: book.progress,
+      lastopened: book.lastopened,
+      createdat: book.createdat.toISOString(),
+      updatedat: book.updatedat.toISOString(),
+      uploadedbyid: book.uploadedbyid,
+    })
+  );
+
   // Filter books based on search query
   const filteredBooks = searchQuery
-    ? (books as ExtendedBookMetadata[]).filter(
+    ? extendedBooks.filter(
         (book) =>
           book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (book.author?.toLowerCase() ?? "").includes(searchQuery.toLowerCase())
       )
-    : (books as ExtendedBookMetadata[]);
+    : extendedBooks;
 
   // Show upload area or library content
   if (addingBook) {

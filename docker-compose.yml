@@ -32,8 +32,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://manabiko:manabiko@postgres:5432/manabiko_library
       - NODE_ENV=production
-      - NEXTAUTH_SECRET=YourSuperSecretValueGoesHere123
-      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
     depends_on:
       - postgres
       - api

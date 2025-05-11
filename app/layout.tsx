@@ -13,6 +13,7 @@ import PdfJsInitializer from "../components/PdfJsInitializer";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import AuthSessionProvider from "@/components/auth/SessionProvider";
 import ThemeProviderWrapper from "@/components/theme/ThemeProviderWrapper";
+import AutoGuestSession from "@/components/auth/AutoGuestSession";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -62,6 +63,7 @@ export default async function RootLayout({
         <AuthSessionProvider session={session}>
           <ThemeProviderWrapper>
             <PdfJsInitializer />
+            <AutoGuestSession />
             {children}
           </ThemeProviderWrapper>
         </AuthSessionProvider>

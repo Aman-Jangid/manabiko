@@ -8,6 +8,7 @@ import BookPreview from "@/components/upload/BookPreview";
 import { BookDocument } from "@/types/types";
 import { useFileUpload } from "./hooks/upload/useFileUpload";
 import { usePdfProcessing } from "./hooks/upload/usePdfProcessing";
+import { convertToChapter } from "@/utils/enhanceTOCWithLLM";
 
 export default function UploadArea({
   close = () => {},
@@ -56,14 +57,14 @@ export default function UploadArea({
       lastOpened: new Date(),
       progress: 0,
       filePath: filePath,
-      tableOfContents: enhancedChapters,
+      tableOfContents: enhancedChapters.map(convertToChapter),
       description: metadata.description || "",
       fileHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      uploadedById: crypto.randomUUID(),
+      file: uploadedFile,
     };
 
     // Check for duplicates
-    const duplicate = books.find((book) => book.fileName === newBook.filePath);
+    const duplicate = books.find((book) => book.filepath === newBook.filePath);
     if (duplicate) {
       alert("Book already exists in library");
       close();

@@ -39,11 +39,12 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         username: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        guestId: { label: "Guest ID", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
           // Create a guest user if no credentials provided
-          const guestId = uuidv4();
+          const guestId = credentials?.guestId || uuidv4();
           return {
             id: guestId,
             name: "Guest User",
@@ -85,7 +86,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.isGuest = user.isGuest;
@@ -95,6 +96,17 @@ export const authOptions: NextAuthOptions = {
           token.email = user.email;
         }
       }
+
+      // Handle session updates
+      if (trigger === "update" && session) {
+        // If switching from guest to regular user
+        if (token.isGuest && session.user && !session.user.isGuest) {
+          // Clear guest session data
+          token.isGuest = false;
+          token.guestId = undefined;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -108,6 +120,15 @@ export const authOptions: NextAuthOptions = {
         }
       }
       return session;
+    },
+  },
+  events: {
+    async signOut({ token }) {
+      // Clean up guest session data if needed
+      if (token.isGuest) {
+        // You can add any cleanup logic here
+        console.log("Cleaning up guest session:", token.guestId);
+      }
     },
   },
   pages: {

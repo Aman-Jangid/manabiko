@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "../../../lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]";
 
 // GET
 
@@ -10,8 +12,16 @@ export default async function handler(
   // GET - Fetch all books from the database
   if (req.method === "GET") {
     try {
+      const session = await getServerSession(req, res, authOptions);
+      if (!session?.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
       console.log("Fetching books from the database...");
       const books = await prisma.document.findMany({
+        where: {
+          uploadedbyid: parseInt(session.user.id),
+        },
         orderBy: {
           createdat: "desc",
         },
@@ -19,14 +29,14 @@ export default async function handler(
       console.log("Books found:", books.length);
 
       return res.status(200).json({
-        success: true, // <-- add this
+        success: true,
         books,
         message: "Database connection successful",
       });
     } catch (error) {
       console.error("Database connection failed:", error);
       return res.status(500).json({
-        success: false, // <-- and also here
+        success: false,
         error: "Failed to connect to database",
         details: error instanceof Error ? error.message : "Unknown error",
       });
@@ -36,6 +46,11 @@ export default async function handler(
   // POST - Store a new book in the database
   if (req.method === "POST") {
     try {
+      const session = await getServerSession(req, res, authOptions);
+      if (!session?.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
       const { bookData } = req.body;
 
       if (!bookData) {
@@ -53,8 +68,6 @@ export default async function handler(
         });
       }
 
-      // fix types if needed here
-
       const book = await prisma.document.create({
         data: {
           title: bookData.title,
@@ -64,7 +77,7 @@ export default async function handler(
           coverurl: bookData.coverurl,
           filepath: bookData.filepath,
           filehash: bookData.filehash,
-          uploadedbyid: bookData.uploadedbyid,
+          uploadedbyid: parseInt(session.user.id),
           tableofcontents: bookData.tableofcontents,
           progress: bookData.progress,
           lastopened: bookData.lastopened

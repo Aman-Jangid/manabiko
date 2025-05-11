@@ -20,8 +20,22 @@ export default function ProfilePage() {
   }, [status, router]);
 
   const handleSignOut = async () => {
-    await signOut({ redirect: false });
-    router.push("/auth/signin");
+    try {
+      // Store guest ID in localStorage if it's a guest user
+      if (isGuest && session?.user?.guestId) {
+        localStorage.setItem("lastGuestId", session.user.guestId);
+      }
+
+      // Sign out and redirect in one step
+      await signOut({
+        redirect: true,
+        callbackUrl: "/auth/signin",
+      });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      // Fallback redirect if signOut fails
+      router.push("/auth/signin");
+    }
   };
 
   if (status === "loading") {

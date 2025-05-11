@@ -5,18 +5,20 @@ export type TOCOutlineItem = {
 };
 
 export type BookMetadata = {
-  id?: string;
-  title?: string;
-  author?: string;
-  publisher?: string;
-  year?: string | number;
-  isbn?: string;
-  description?: string;
-  coverImage?: string;
-  pages?: number;
-  lastRead?: string;
-  progress?: number;
-  fileName?: string;
+  id: number;
+  title: string;
+  author: string;
+  isbn: string;
+  description: string;
+  coverurl: string;
+  filepath: string;
+  filehash: string;
+  tableofcontents: Chapter[];
+  progress: number;
+  lastopened: string;
+  createdat: Date;
+  updatedat: Date;
+  uploadedbyid: number;
 };
 
 export type ExtendedBookMetadata = {
@@ -31,18 +33,23 @@ export type ExtendedBookMetadata = {
   coverurl?: string; // Base64-encoded image string
   pages?: number;
   lastRead?: string;
-  lastopened?: string; // Additional field
+  lastopened?: string;
   progress?: number;
   fileName?: string;
   filepath?: string;
   filehash?: string;
   uploadedbyid?: number;
-  tableofcontents?: JSON; // You can type this more strictly if you know the structure
+  tableofcontents?: Chapter[]; // Changed from JSON to Chapter[]
   createdat?: string;
   updatedat?: string;
 };
 
-export type Chapter = { title: string; level?: number };
+export interface Chapter {
+  title: string;
+  level: number;
+  pageNumber: number;
+  children?: Chapter[];
+}
 
 export type EnhancedChapter = {
   title?: string;
@@ -57,15 +64,14 @@ export interface BookDocument {
   title: string;
   author: string;
   isbn: string;
-  coverUrl: string;
-  lastOpened: Date;
-  progress: number;
-  filePath: string;
-  tableOfContents: EnhancedChapter[];
   description: string;
+  coverUrl: string;
+  filePath: string;
   fileHash: string;
-  uploadedById: string;
-  fileName?: string; // For comparison with duplicates
+  tableOfContents: Chapter[];
+  progress: number;
+  lastOpened: Date;
+  file: File; // The actual file object
 }
 
 /**

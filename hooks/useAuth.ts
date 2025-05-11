@@ -1,11 +1,13 @@
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 export const useAuth = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { data: session } = useSession();
 
   const signInWithCredentials = async (email: string, password: string) => {
     setError("");
@@ -34,13 +36,20 @@ export const useAuth = () => {
     }
   };
 
-  const continueAsGuest = async () => {
+  const continueAsGuest = async (guestId?: string) => {
     setError("");
     setIsLoading(true);
 
     try {
+      // Check if there's already a guest session
+      if (session?.user?.isGuest) {
+        router.push("/profile");
+        return true;
+      }
+
       const result = await signIn("credentials", {
         redirect: false,
+        guestId,
       });
 
       if (result?.error) {

@@ -1,5 +1,6 @@
 import { BookDocument, BookMetadata } from "@/types/types";
 import { useEffect, useState } from "react";
+import { calculateFileHash } from "@/lib/utils/fileHash";
 
 export function useLibrary() {
   const [books, setBooks] = useState<BookMetadata[]>([]);
@@ -7,37 +8,28 @@ export function useLibrary() {
   const [error, setError] = useState<string | null>(null);
 
   const loadLibrary = async () => {
-    const fetchLibrary = async () => {
+    try {
       setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/books", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+      const response = await fetch("/api/books");
+      const data = await response.json();
 
-        if (!res.ok) {
-          console.error("Failed to load library:", res.statusText);
-          return;
-        }
-
-        const data = await res.json();
-        if (!data.success) {
-          console.error("Failed to load library:", data.error);
-          return;
-        }
-
-        setBooks(data.books);
-        setLoading(false);
-      } catch (error) {
-        setError("Failed to load library");
-        console.error("Error loading library:", error);
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch books");
       }
-    };
 
-    fetchLibrary();
+      if (data.success) {
+        setBooks(data.books);
+      } else {
+        throw new Error(data.error || "Failed to fetch books");
+      }
+    } catch (error) {
+      console.error("Error loading library:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to load library"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -46,6 +38,9 @@ export function useLibrary() {
 
   const addBook = async (book: BookDocument) => {
     try {
+      // Calculate file hash
+      const fileHash = await calculateFileHash(book.file);
+
       const res = await fetch("/api/books", {
         method: "POST",
         headers: {
@@ -58,12 +53,11 @@ export function useLibrary() {
             isbn: book.isbn,
             description: book.description,
             coverurl: book.coverUrl,
-            filepath: book.filePath || "failpath",
-            filehash: crypto.randomUUID().replace(/-/g, "").padEnd(64, "0"), // Just for testing, should be a real 64-character hash
-            uploadedbyid: 3549867, // Int
+            filepath: book.filePath,
+            filehash: fileHash,
             tableofcontents: book.tableOfContents,
             progress: book.progress,
-            lastopened: new Date().toISOString(), // or simply new Date()
+            lastopened: new Date().toISOString(),
           },
         }),
       });

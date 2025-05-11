@@ -1,11 +1,39 @@
 import Together from "together-ai";
 import { jsonrepair } from "jsonrepair"; // npm install jsonrepair
+import { Chapter } from "@/types/types";
 
 export interface TOCItemLLM {
   c: string; // Chapter/Title
   p: number; // Page number
   lv: number; // Level
   t?: TOCItemLLM[]; // Children
+}
+
+export type EnhancedChapter = {
+  title?: string;
+  c?: string;
+  p?: number | string;
+  t?: EnhancedChapter[];
+  topics?: EnhancedChapter[];
+  children?: EnhancedChapter[];
+};
+
+// Convert EnhancedChapter to Chapter format
+export function convertToChapter(enhanced: EnhancedChapter): Chapter {
+  return {
+    title: enhanced.title || enhanced.c || "",
+    level: 1, // Default level since EnhancedChapter doesn't have level
+    pageNumber:
+      typeof enhanced.p === "string"
+        ? parseInt(enhanced.p) || 1
+        : enhanced.p || 1,
+    children:
+      enhanced.t || enhanced.topics || enhanced.children
+        ? (enhanced.t || enhanced.topics || enhanced.children)?.map(
+            convertToChapter
+          )
+        : undefined,
+  };
 }
 
 function extractJsonBlock(content: string): string {

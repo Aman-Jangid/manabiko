@@ -100,7 +100,10 @@ export default function SignIn() {
           <div className="mt-4 sm:mt-6">
             <div className="text-center">
               <button
-                onClick={continueAsGuest}
+                onClick={(e) => {
+                  e.preventDefault();
+                  continueAsGuest();
+                }}
                 className="font-medium hover:opacity-80 transition-opacity duration-200"
                 style={{ color: "var(--color-accent)" }}
               >
