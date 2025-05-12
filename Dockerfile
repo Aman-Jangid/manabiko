@@ -14,6 +14,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Set environment variable for Docker build
+ENV DOCKER_BUILD=1
+
 # Prisma generate
 RUN npx prisma generate
 # Build the Next.js application

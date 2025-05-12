@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     domains: ["covers.openlibrary.org"],
     unoptimized: true,
   },
+  output: process.env.DOCKER_BUILD ? "standalone" : undefined,
 };
 
 export default nextConfig;
