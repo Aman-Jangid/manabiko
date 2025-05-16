@@ -17,7 +17,7 @@ A book progress tracker application that helps you manage and track your reading
 
 - Node.js (v18 or later)
 - npm or yarn
-- Docker & Docker Compose
+- Docker & Docker Compose (for local development)
 
 ### 💻 Installation
 
@@ -38,6 +38,7 @@ yarn install
 
 ### 🗄️ Database Setup
 
+#### Local Development (with Docker)
 Initialize and synchronize the database:
 
 ```bash
@@ -45,9 +46,24 @@ npx prisma generate
 npx prisma db push
 ```
 
+#### Production (with Neon PostgreSQL)
+For production deployments on Vercel, we recommend using Neon PostgreSQL:
+
+1. Create an account on [Neon](https://neon.tech)
+2. Create a new project named "manabiko"
+3. Get your connection strings from the Neon dashboard
+4. Set the following environment variables in your Vercel project:
+   - `DATABASE_URL`: Your Neon PostgreSQL connection string with connection pooling
+   - `DIRECT_URL`: Your direct Neon PostgreSQL connection string for migrations
+
+5. Deploy your schema:
+```bash
+npm run db:deploy
+```
+
 ### 🔌 Start Services
 
-> **Important:** Ensure Docker & Docker Compose are installed and properly configured on your system
+> **Important:** For local development, ensure Docker & Docker Compose are installed
 
 Start the required backend services:
 
@@ -58,7 +74,7 @@ docker-compose up --build
 This will start:
 
 - **manabiko-api** - PDF processing service
-- **postgres:16** - Database server
+- **postgres:16** - Database server (local development only)
 
 ### 🏃‍♂️ Run Development Server
 
