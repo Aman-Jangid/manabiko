@@ -29,7 +29,9 @@ export function useFileUpload() {
         throw new Error(error || "Failed to upload file");
       }
 
-      const { filePath } = await res.json();
+      const resJson = await res.json();
+
+      const { path: filePath } = resJson.file;
 
       return {
         filePath,

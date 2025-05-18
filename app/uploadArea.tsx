@@ -9,6 +9,8 @@ import { BookDocument } from "@/types/types";
 import { useFileUpload } from "./hooks/upload/useFileUpload";
 import { usePdfProcessing } from "./hooks/upload/usePdfProcessing";
 import { convertToChapter } from "@/utils/enhanceTOCWithLLM";
+import { calculateFileHash } from "@/lib/utils/fileHash";
+import toast from "react-hot-toast";
 
 export default function UploadArea({
   close = () => {},
@@ -45,9 +47,14 @@ export default function UploadArea({
 
     const { filePath, success } = await uploadFile(uploadedFile);
     if (!success) {
-      alert("Failed to upload file");
+      toast.error("Failed to upload file", {
+        position: "bottom-right",
+        duration: 1000,
+      });
       return;
     }
+
+    const fileHash = await calculateFileHash(uploadedFile);
 
     const newBook: BookDocument = {
       title: metadata.title || uploadedFile.name,
@@ -56,20 +63,25 @@ export default function UploadArea({
       coverUrl: coverImage || "",
       lastOpened: new Date(),
       progress: 0,
-      filePath: filePath,
+      filePath,
       tableOfContents: enhancedChapters.map(convertToChapter),
       description: metadata.description || "",
-      fileHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      fileHash,
       file: uploadedFile,
     };
 
     // Check for duplicates
     const duplicate = books.find((book) => book.filepath === newBook.filePath);
     if (duplicate) {
-      alert("Book already exists in library");
+      toast.error("Book already exists in library", {
+        position: "bottom-right",
+        removeDelay: 1000,
+      });
       close();
       return;
     }
+
+    console.log("newBook in uploadArea : ", newBook);
 
     await addBook(newBook);
     close();

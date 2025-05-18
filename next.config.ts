@@ -6,6 +6,17 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   output: process.env.DOCKER_BUILD ? "standalone" : undefined,
+  serverExternalPackages: ["@prisma/client", "prisma"],
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = [
+        ...(config.externals || []),
+        "prisma",
+        "@prisma/client",
+      ];
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

@@ -18,14 +18,28 @@ export default async function handler(
       }
 
       console.log("Fetching books from the database...");
-      const books = await prisma.document.findMany({
-        where: {
-          uploadedbyid: parseInt(session.user.id),
-        },
-        orderBy: {
-          createdat: "desc",
-        },
-      });
+
+      // Use a conditional query approach instead of a dynamic where object
+      let books;
+      if (session.user.id && !session.user.isGuest) {
+        // For regular users, only show their books
+        books = await prisma.document.findMany({
+          where: {
+            uploadedbyid: parseInt(session.user.id),
+          },
+          orderBy: {
+            createdat: "desc",
+          },
+        });
+      } else {
+        // For guest users or if no specific user filter, show all books
+        books = await prisma.document.findMany({
+          orderBy: {
+            createdat: "desc",
+          },
+        });
+      }
+
       console.log("Books found:", books.length);
 
       return res.status(200).json({
@@ -68,6 +82,9 @@ export default async function handler(
         });
       }
 
+      // Get the user ID from the session
+      const userId = parseInt(session.user.id);
+
       const book = await prisma.document.create({
         data: {
           title: bookData.title,
@@ -77,7 +94,7 @@ export default async function handler(
           coverurl: bookData.coverurl,
           filepath: bookData.filepath,
           filehash: bookData.filehash,
-          uploadedbyid: parseInt(session.user.id),
+          uploadedbyid: userId,
           tableofcontents: bookData.tableofcontents,
           progress: bookData.progress,
           lastopened: bookData.lastopened
@@ -85,8 +102,6 @@ export default async function handler(
             : null,
         },
       });
-
-      console.log("Book created:", book);
 
       if (!book) {
         return res.status(500).json({ error: "Failed to create book." });

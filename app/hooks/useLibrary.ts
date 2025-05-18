@@ -1,6 +1,5 @@
 import { BookDocument, BookMetadata } from "@/types/types";
 import { useEffect, useState } from "react";
-import { calculateFileHash } from "@/lib/utils/fileHash";
 
 export function useLibrary() {
   const [books, setBooks] = useState<BookMetadata[]>([]);
@@ -38,9 +37,6 @@ export function useLibrary() {
 
   const addBook = async (book: BookDocument) => {
     try {
-      // Calculate file hash
-      const fileHash = await calculateFileHash(book.file);
-
       const res = await fetch("/api/books", {
         method: "POST",
         headers: {
@@ -54,7 +50,7 @@ export function useLibrary() {
             description: book.description,
             coverurl: book.coverUrl,
             filepath: book.filePath,
-            filehash: fileHash,
+            filehash: book.fileHash,
             tableofcontents: book.tableOfContents,
             progress: book.progress,
             lastopened: new Date().toISOString(),

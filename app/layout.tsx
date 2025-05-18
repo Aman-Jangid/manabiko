@@ -14,6 +14,7 @@ import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import AuthSessionProvider from "@/components/auth/SessionProvider";
 import ThemeProviderWrapper from "@/components/theme/ThemeProviderWrapper";
 import AutoGuestSession from "@/components/auth/AutoGuestSession";
+import { Toaster } from "react-hot-toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,13 +59,17 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${hachiMaruPop} ${geistMono.variable} ${kleeOne.variable} ${notoSerifJP.variable} antialiased`}
+        className={`${geistSans.variable} ${hachiMaruPop} ${geistMono.variable} ${kleeOne.variable} ${notoSerifJP.variable} antialiased relative`}
       >
         <AuthSessionProvider session={session}>
           <ThemeProviderWrapper>
             <PdfJsInitializer />
             <AutoGuestSession />
             {children}
+            <Toaster
+              position="bottom-right"
+              toastOptions={{ duration: 1000 }}
+            />
           </ThemeProviderWrapper>
         </AuthSessionProvider>
       </body>

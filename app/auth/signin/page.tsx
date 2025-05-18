@@ -1,21 +1,66 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { FormInput } from "@/components/FormInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { error, isLoading, signInWithCredentials, continueAsGuest } =
+  const [localError, setLocalError] = useState("");
+
+  const router = useRouter();
+  const { status } = useSession();
+  const { error, isLoading, signInWithCredentials, continueAsGuest, isGuest } =
     useAuth();
+
+  // Redirect to profile if already authenticated as a non-guest user
+  useEffect(() => {
+    if (status === "authenticated" && !isGuest) {
+      router.push("/profile");
+    }
+  }, [status, isGuest, router]);
+
+  // Create a guest user in the background when the sign-in page loads
+  // but only if we're not authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      continueAsGuest({ redirect: false });
+    }
+  }, [status, continueAsGuest]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    await signInWithCredentials(email, password);
+    setLocalError("");
+
+    // Basic validation
+    if (!email || !password) {
+      setLocalError("Please enter both email and password");
+      return;
+    }
+
+    // Sign in with credentials
+    const success = await signInWithCredentials(email, password, {
+      redirect: true,
+      callbackUrl: "/profile",
+    });
+
+    if (!success && !error) {
+      setLocalError("Failed to sign in");
+    }
+  };
+
+  const handleGuestContinue = () => {
+    continueAsGuest({ redirect: true, callbackUrl: "/profile" });
+  };
+
+  const handleCancel = () => {
+    router.push("/");
   };
 
   return (
@@ -27,7 +72,7 @@ export default function SignIn() {
 
       <main className="w-full grow flex items-center justify-center row-span-2 px-4 sm:px-0">
         <div
-          className="w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-8 p-6 sm:p-10 rounded-lg shadow-md border-2 border-[var(--color-accent)]/60"
+          className="w-full max-w-md space-y-6 sm:space-y-8 sm:p-10 rounded-lg shadow-md border-2 border-[var(--color-accent)]/60"
           style={{
             background: "var(--color-surface)",
             color: "var(--color-strong)",
@@ -35,7 +80,7 @@ export default function SignIn() {
         >
           <div>
             <h2
-              className="mt-3 sm:mt-6 text-center text-2xl sm:text-3xl font-bold"
+              className="mt-6 text-center text-3xl font-bold tracking-tight"
               style={{ color: "var(--color-strong)" }}
             >
               Sign in to your account
@@ -47,18 +92,23 @@ export default function SignIn() {
               Or{" "}
               <Link
                 href="/auth/signup"
-                className="font-medium hover:opacity-80 transition-opacity duration-200"
+                className="font-medium hover:opacity-80"
                 style={{ color: "var(--color-accent)" }}
               >
-                create an account
-              </Link>{" "}
-              if you don&apos;t have one
+                create a new account
+              </Link>
             </p>
           </div>
 
-          {error && (
-            <div className="bg-[var(--color-accent-secondary)]/10 border border-[var(--color-accent-secondary)] text-[var(--color-accent-secondary)] px-4 py-3 rounded">
-              {error}
+          {(localError || error) && (
+            <div
+              className="p-3 rounded-md"
+              style={{
+                backgroundColor: "var(--color-error-bg)",
+                color: "var(--color-error)",
+              }}
+            >
+              {localError || error}
             </div>
           )}
 
@@ -90,26 +140,32 @@ export default function SignIn() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative w-full flex justify-center py-2 px-4 border-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 hover:brightness-110 text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 disabled:opacity-50"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2"
+                style={{
+                  backgroundColor: "var(--color-accent)",
+                  opacity: isLoading ? 0.7 : 1,
+                }}
               >
                 {isLoading ? "Signing in..." : "Sign in"}
               </button>
             </div>
           </form>
 
-          <div className="mt-4 sm:mt-6">
-            <div className="text-center">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  continueAsGuest();
-                }}
-                className="font-medium hover:opacity-80 transition-opacity duration-200"
-                style={{ color: "var(--color-accent)" }}
-              >
-                Continue as Guest
-              </button>
-            </div>
+          <div className="mt-4 sm:mt-6 flex justify-between">
+            <button
+              onClick={handleCancel}
+              className="font-medium hover:opacity-80 transition-opacity duration-200"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              Cancel & Continue as Guest
+            </button>
+            <button
+              onClick={handleGuestContinue}
+              className="font-medium hover:opacity-80 transition-opacity duration-200"
+              style={{ color: "var(--color-accent)" }}
+            >
+              Guest Profile
+            </button>
           </div>
         </div>
       </main>

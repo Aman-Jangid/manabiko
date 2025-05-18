@@ -12,19 +12,19 @@ export default async function handler(
   }
 
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, guestUserId } = req.body;
 
     // Basic validation
     if (!username || !email || !password) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Check if user with email already exists
+    // Check if user with email already exists (and is not a guest)
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
-    if (existingUser) {
+    if (existingUser && !existingUser.email.startsWith("guest-")) {
       return res.status(409).json({ error: "Email already in use" });
     }
 
@@ -32,14 +32,41 @@ export default async function handler(
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create the user
-    const newUser = await prisma.user.create({
-      data: {
-        name: username,
-        email,
-        passwordhash: hashedPassword,
-      },
-    });
+    let newUser;
+
+    // If a guest user ID was provided, try to upgrade that account
+    if (guestUserId) {
+      const guestUser = await prisma.user.findUnique({
+        where: { id: parseInt(guestUserId) },
+      });
+
+      if (guestUser && guestUser.email.startsWith("guest-")) {
+        // Update the guest user with the new information
+        newUser = await prisma.user.update({
+          where: { id: guestUser.id },
+          data: {
+            name: username,
+            email: email,
+            passwordhash: hashedPassword,
+          },
+        });
+
+        // Here you would also migrate any user data from the guest account
+        // Such as reading progress, preferences, etc.
+      }
+    }
+
+    // If we didn't update a guest user (either no ID provided or guest not found),
+    // create a new user
+    if (!newUser) {
+      newUser = await prisma.user.create({
+        data: {
+          name: username,
+          email,
+          passwordhash: hashedPassword,
+        },
+      });
+    }
 
     // Return success but don't include password hash
     return res.status(201).json({
@@ -49,6 +76,7 @@ export default async function handler(
         name: newUser.name,
         email: newUser.email,
         createdAt: newUser.createdat,
+        wasGuest: guestUserId ? true : false,
       },
     });
   } catch (error) {

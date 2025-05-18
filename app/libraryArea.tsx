@@ -51,8 +51,16 @@ export default function LibraryArea() {
       tableofcontents: book.tableofcontents,
       progress: book.progress,
       lastopened: book.lastopened,
-      createdat: book.createdat.toISOString(),
-      updatedat: book.updatedat.toISOString(),
+      createdat: book.createdat
+        ? typeof book.createdat === "string"
+          ? book.createdat
+          : book.createdat.toISOString()
+        : undefined,
+      updatedat: book.updatedat
+        ? typeof book.updatedat === "string"
+          ? book.updatedat
+          : book.updatedat.toISOString()
+        : undefined,
       uploadedbyid: book.uploadedbyid,
     })
   );

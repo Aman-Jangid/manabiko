@@ -1,50 +1,40 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { User, LogOut } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { signOutUser, isGuest } = useAuth();
 
-  const isGuest = session?.user?.isGuest;
-
+  // Redirect to sign-in if not authenticated
   useEffect(() => {
-    // Redirect to sign in if not authenticated and not a guest
     if (status === "unauthenticated") {
       router.push("/auth/signin");
     }
   }, [status, router]);
 
-  const handleSignOut = async () => {
-    try {
-      // Store guest ID in localStorage if it's a guest user
-      if (isGuest && session?.user?.guestId) {
-        localStorage.setItem("lastGuestId", session.user.guestId);
-      }
-
-      // Sign out and redirect in one step
-      await signOut({
-        redirect: true,
-        callbackUrl: "/auth/signin",
-      });
-    } catch (error) {
-      console.error("Error signing out:", error);
-      // Fallback redirect if signOut fails
-      router.push("/auth/signin");
-    }
-  };
-
-  if (status === "loading") {
+  // Show loading state while session is loading
+  if (status === "loading" || isGuest === undefined) {
     return (
       <div className="w-full h-[100vh] flex items-center justify-center">
         <div className="animate-pulse">Loading profile...</div>
       </div>
     );
   }
+
+  // Get user information from session
+  const userName = session?.user?.name || "Guest User";
+  const userEmail = !isGuest ? session?.user?.email : null;
+
+  const handleSignOut = () => {
+    signOutUser();
+  };
 
   return (
     <div
@@ -95,7 +85,7 @@ export default function ProfilePage() {
                       className="text-2xl font-bold"
                       style={{ color: "var(--color-strong)" }}
                     >
-                      {session?.user?.name || "Guest User"}
+                      {userName}
                     </h1>
                     <div className="flex items-center">
                       {isGuest && (
@@ -107,10 +97,8 @@ export default function ProfilePage() {
                       )}
                     </div>
                   </div>
-                  {!isGuest && session?.user?.email && (
-                    <p style={{ color: "var(--color-text)" }}>
-                      {session.user.email}
-                    </p>
+                  {!isGuest && userEmail && (
+                    <p style={{ color: "var(--color-text)" }}>{userEmail}</p>
                   )}
                 </div>
               </div>
@@ -155,9 +143,9 @@ export default function ProfilePage() {
                         <button
                           type="button"
                           className="inline-flex items-center px-4 py-2 brightness-125 border-2 border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 text-sm font-medium rounded-md shadow-sm"
-                          onClick={() => router.push("/auth/signin")}
+                          onClick={() => router.push("/auth/signup")}
                         >
-                          Sign In
+                          Connect
                         </button>
                       </div>
                     </div>
@@ -178,7 +166,7 @@ export default function ProfilePage() {
                   }}
                 >
                   <LogOut className="mr-2 -ml-1 h-4 w-4" aria-hidden="true" />
-                  {isGuest ? "Exit Guest Session" : "Sign Out"}
+                  {isGuest ? "Return to Home" : "Sign Out"}
                 </button>
               </div>
             </div>

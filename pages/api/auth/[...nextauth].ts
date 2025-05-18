@@ -2,7 +2,6 @@ import NextAuth, { DefaultSession, NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { v4 as uuidv4 } from "uuid";
 
 // Extend the built-in session types
 declare module "next-auth" {
@@ -10,14 +9,12 @@ declare module "next-auth" {
     user: {
       id: string;
       isGuest?: boolean;
-      guestId?: string;
     } & DefaultSession["user"];
   }
 
   interface User {
     id: string;
     isGuest?: boolean;
-    guestId?: string;
   }
 }
 
@@ -26,32 +23,28 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     isGuest?: boolean;
-    guestId?: string;
   }
 }
 
 export const authOptions: NextAuthOptions = {
   secret:
     process.env.NEXTAUTH_SECRET || "YOUR_SECRET_HERE_REPLACE_IN_PRODUCTION",
+  session: {
+    // Use JWT strategy for sessions
+    strategy: "jwt",
+    // Make sessions expire after 30 days of inactivity
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
         username: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        guestId: { label: "Guest ID", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) {
-          // Create a guest user if no credentials provided
-          const guestId = credentials?.guestId || uuidv4();
-          return {
-            id: guestId,
-            name: "Guest User",
-            isGuest: true,
-            guestId: guestId,
-            email: null, // Explicitly set email to null for guest users
-          };
+        if (!credentials?.username) {
+          return null;
         }
 
         try {
@@ -59,7 +52,25 @@ export const authOptions: NextAuthOptions = {
             where: { email: credentials.username },
           });
 
-          if (!user || !user.passwordhash) {
+          if (!user) {
+            return null;
+          }
+
+          // For guest users (those with emails starting with "guest-")
+          // we don't check the password
+          const isGuestUser = user.email.startsWith("guest-");
+
+          if (isGuestUser) {
+            return {
+              id: user.id.toString(),
+              name: user.name,
+              email: user.email,
+              isGuest: true,
+            };
+          }
+
+          // For regular users, we check the password
+          if (!credentials.password || !user.passwordhash) {
             return null;
           }
 
@@ -87,48 +98,62 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
+      // When a user signs in, update the token with user data
       if (user) {
-        token.id = user.id;
-        token.isGuest = user.isGuest;
-        token.guestId = user.guestId;
-        // Only include email if it exists (not a guest user)
-        if (user.email) {
-          token.email = user.email;
-        }
+        // Replace the entire token with just the new user data and necessary JWT fields
+        // This ensures a complete reset between different users
+        const newToken = {
+          // Preserve only necessary JWT fields
+          sub: token.sub,
+          iat: token.iat,
+          exp: token.exp,
+          jti: token.jti,
+
+          // Set user data explicitly
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          isGuest: user.isGuest === true, // Explicit boolean check
+        };
+
+        // For debugging
+        console.log(
+          `JWT update: User ${user.email} signed in, isGuest=${
+            user.isGuest === true
+          }`
+        );
+
+        return newToken;
       }
 
       // Handle session updates
       if (trigger === "update" && session) {
-        // If switching from guest to regular user
-        if (token.isGuest && session.user && !session.user.isGuest) {
-          // Clear guest session data
-          token.isGuest = false;
-          token.guestId = undefined;
+        // If there's explicit session data, use it to update the token
+        if (session.user) {
+          // For debugging
+          console.log(`JWT session update: isGuest=${session.user.isGuest}`);
+          Object.assign(token, session.user);
         }
       }
 
       return token;
     },
     async session({ session, token }) {
+      // Make sure session always has the latest from token
       if (session.user) {
         session.user.id = token.id;
-        session.user.isGuest = token.isGuest;
-        session.user.guestId = token.guestId;
-        // Only include email if it exists (not a guest user)
+        session.user.name = token.name as string;
+        session.user.isGuest = token.isGuest === true; // Explicit boolean check
         if (token.email) {
-          session.user.email = token.email;
+          session.user.email = token.email as string;
         }
+
+        // For debugging
+        console.log(
+          `Session update: User ${session.user.email}, isGuest=${session.user.isGuest}`
+        );
       }
       return session;
-    },
-  },
-  events: {
-    async signOut({ token }) {
-      // Clean up guest session data if needed
-      if (token.isGuest) {
-        // You can add any cleanup logic here
-        console.log("Cleaning up guest session:", token.guestId);
-      }
     },
   },
   pages: {
