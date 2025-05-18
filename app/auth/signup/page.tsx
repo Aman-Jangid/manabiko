@@ -54,14 +54,14 @@ export default function SignUp() {
 
   return (
     <div
-      className="w-full h-[100vh] font-[family-name:var(--font-geist-sans)] grid grid-rows-[5vh_95vh] relative overflow-hidden"
+      className="w-full min-h-screen font-[family-name:var(--font-geist-sans)] grid grid-rows-[auto_1fr] relative overflow-hidden"
       style={{ background: "var(--color-bg)", color: "var(--color-strong)" }}
     >
       <Header />
 
-      <main className="w-full grow flex items-center justify-center row-span-2 px-4 sm:px-0">
+      <main className="w-full grow flex items-center justify-center row-span-2 px-2 sm:px-4 md:px-0">
         <div
-          className="w-full max-w-md space-y-6 sm:space-y-8 sm:p-10 rounded-lg shadow-md border-2 border-[var(--color-accent)]/60"
+          className="w-full max-w-xs xs:max-w-sm sm:max-w-md space-y-4 xs:space-y-6 sm:space-y-8 p-4 xs:p-6 sm:p-10 rounded-lg shadow-md border-2 border-[var(--color-accent)]/60"
           style={{
             background: "var(--color-surface)",
             color: "var(--color-strong)",
@@ -69,13 +69,13 @@ export default function SignUp() {
         >
           <div>
             <h2
-              className="mt-6 text-center text-3xl font-bold tracking-tight"
+              className="mt-4 xs:mt-6 text-center text-2xl xs:text-3xl font-bold tracking-tight"
               style={{ color: "var(--color-strong)" }}
             >
               Create an account
             </h2>
             <p
-              className="mt-2 text-center text-sm"
+              className="mt-2 text-center text-xs xs:text-sm"
               style={{ color: "var(--color-text)" }}
             >
               Or{" "}
@@ -91,7 +91,7 @@ export default function SignUp() {
 
           {(localError || error) && (
             <div
-              className="p-3 rounded-md"
+              className="p-2 xs:p-3 rounded-md text-xs xs:text-sm"
               style={{
                 backgroundColor: "var(--color-error-bg)",
                 color: "var(--color-error)",
@@ -102,7 +102,7 @@ export default function SignUp() {
           )}
 
           <form
-            className="mt-6 sm:mt-8 space-y-5 sm:space-y-6"
+            className="mt-4 xs:mt-6 sm:mt-8 space-y-4 xs:space-y-5 sm:space-y-6"
             onSubmit={handleSubmit}
           >
             <div className="rounded-md shadow-sm -space-y-px">
@@ -144,7 +144,7 @@ export default function SignUp() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 bg-[var(--color-accent)] border-2 border-dashed border-[var(--color-accent)] rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 hover:border-dashed hover:bg-[var(--color-accent)]/20 transition-all duration-200"
+                className="w-full flex justify-center py-2 px-4 text-xs xs:text-sm bg-[var(--color-accent)] border-2 border-dashed border-[var(--color-accent)] rounded-md shadow-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 hover:border-dashed hover:bg-[var(--color-accent)]/20 transition-all duration-200"
                 style={{
                   opacity: isLoading ? 0.7 : 1,
                 }}
@@ -154,10 +154,10 @@ export default function SignUp() {
             </div>
           </form>
 
-          <div className="mt-4 sm:mt-6 flex justify-between">
+          <div className="mt-2 xs:mt-4 sm:mt-6 flex flex-col gap-2 xs:flex-row xs:justify-between">
             <button
               onClick={handleCancel}
-              className="w-full flex justify-center py-2 px-4 bg-[var(--color-text-secondary)]/20 border-2 border-[var(--color-text-secondary)]/40 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 hover:border-dashed hover:bg-[var(--color-border)]/10"
+              className="w-full flex justify-center py-2 px-4 text-xs xs:text-sm bg-[var(--color-text-secondary)]/20 border-2 border-[var(--color-text-secondary)]/40 rounded-md shadow-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 hover:border-dashed hover:bg-[var(--color-border)]/10"
               style={{
                 color: "var(--color-text-secondary)",
                 fontWeight: "semibold",
