@@ -140,9 +140,8 @@ export default function SignIn() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2"
+                className="w-full flex justify-center py-2 px-4 bg-[var(--color-accent)] border-2 border-dashed border-[var(--color-accent)] rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 hover:border-dashed hover:bg-[var(--color-accent)]/20 transition-all duration-200"
                 style={{
-                  backgroundColor: "var(--color-accent)",
                   opacity: isLoading ? 0.7 : 1,
                 }}
               >
@@ -154,8 +153,11 @@ export default function SignIn() {
           <div className="mt-4 sm:mt-6 flex justify-between">
             <button
               onClick={handleCancel}
-              className="font-medium hover:opacity-80 transition-opacity duration-200"
-              style={{ color: "var(--color-text-secondary)" }}
+              className="w-full flex justify-center py-2 px-4 bg-[var(--color-text-secondary)]/20 border-2 border-[var(--color-text-secondary)]/40 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 hover:border-dashed hover:bg-[var(--color-border)]/10"
+              style={{
+                color: "var(--color-text-secondary)",
+                fontWeight: "semibold",
+              }}
             >
               Cancel
             </button>
