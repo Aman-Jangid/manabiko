@@ -40,7 +40,7 @@ const uploadFile = async (req: NextApiRequest, res: NextApiResponse) => {
 
     try {
       const response = await axios.post(
-        "http://localhost:8000/upload",
+        `${process.env.EXPRESS_API_URL}/upload`,
         formData,
         {
           headers: {

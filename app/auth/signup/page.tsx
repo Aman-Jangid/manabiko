@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, useState, useEffect } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { FormInput } from "@/components/FormInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/app/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+// import { useSession } from "next-auth/react";
 
 export default function SignUp() {
   const [username, setUsername] = useState("");
@@ -17,23 +17,8 @@ export default function SignUp() {
   const [localError, setLocalError] = useState("");
 
   const router = useRouter();
-  const { status } = useSession();
-  const { error, isLoading, registerUser, continueAsGuest, isGuest } =
-    useAuth();
-
-  // Redirect to profile if already authenticated as a non-guest user
-  useEffect(() => {
-    if (status === "authenticated" && !isGuest) {
-      router.push("/profile");
-    }
-  }, [status, isGuest, router]);
-
-  // Create a guest user in the background when the sign-up page loads
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      continueAsGuest({ redirect: false });
-    }
-  }, [status, continueAsGuest]);
+  // const { status } = useSession();
+  const { error, isLoading, registerUser } = useAuth();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

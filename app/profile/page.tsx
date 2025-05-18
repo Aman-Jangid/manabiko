@@ -1,16 +1,14 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { User, LogOut } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { signOutUser, isGuest } = useAuth();
 
   // Redirect to sign-in if not authenticated
   useEffect(() => {
@@ -20,7 +18,7 @@ export default function ProfilePage() {
   }, [status, router]);
 
   // Show loading state while session is loading
-  if (status === "loading" || isGuest === undefined) {
+  if (status === "loading") {
     return (
       <div className="w-full h-[100vh] flex items-center justify-center">
         <div className="animate-pulse">Loading profile...</div>
@@ -30,11 +28,7 @@ export default function ProfilePage() {
 
   // Get user information from session
   const userName = session?.user?.name || "Guest User";
-  const userEmail = !isGuest ? session?.user?.email : null;
-
-  const handleSignOut = () => {
-    signOutUser();
-  };
+  const userEmail = session?.user?.email;
 
   return (
     <div
@@ -72,7 +66,7 @@ export default function ProfilePage() {
               <div className="flex items-center space-x-4">
                 <div
                   className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                    isGuest
+                    session?.user?.name === null
                       ? "bg-[var(--color-accent-quaternary)]/50"
                       : "bg-[var(--color-accent)]/50"
                   }`}
@@ -87,17 +81,8 @@ export default function ProfilePage() {
                     >
                       {userName}
                     </h1>
-                    <div className="flex items-center">
-                      {isGuest && (
-                        <span
-                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold bg-[var(--color-accent-quaternary)]/50 text-[var(--color-strong)]`}
-                        >
-                          Guest User
-                        </span>
-                      )}
-                    </div>
                   </div>
-                  {!isGuest && userEmail && (
+                  {userEmail && (
                     <p style={{ color: "var(--color-text)" }}>{userEmail}</p>
                   )}
                 </div>
@@ -113,60 +98,20 @@ export default function ProfilePage() {
                 Account Information
               </h2>
 
-              {isGuest && (
-                <div
-                  className="mb-6 p-4 border rounded-md bg-[var(--color-accent-tertiary)]/10 border-yellow-600"
-                  style={{
-                    color: "var(--color-strong)",
-                  }}
-                >
-                  <div className="flex">
-                    <div className="ml-3">
-                      <h3
-                        className="text-sm font-medium"
-                        style={{ color: "var(--color-strong)" }}
-                      >
-                        Guest Account
-                      </h3>
-                      <div
-                        className="mt-2 text-sm"
-                        style={{ color: "var(--color-text)" }}
-                      >
-                        <p>
-                          You&apos;re currently using a guest account. Your data
-                          is stored locally in your browser. To save your data
-                          and access it across devices, please sign in or create
-                          an account.
-                        </p>
-                      </div>
-                      <div className="mt-4">
-                        <button
-                          type="button"
-                          className="inline-flex items-center px-4 py-2 brightness-125 border-2 border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 text-sm font-medium rounded-md shadow-sm"
-                          onClick={() => router.push("/auth/signup")}
-                        >
-                          Connect
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div
                 className="mt-8 pt-6 border-t"
                 style={{ borderColor: "var(--color-border)" }}
               >
                 <button
-                  onClick={handleSignOut}
                   className="inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium hover:bg-[var(--color-accent-secondary)]/20"
                   style={{
                     borderColor: "var(--color-accent-secondary)",
                     color: "var(--color-accent-secondary)",
                   }}
+                  onClick={() => signOut()}
                 >
                   <LogOut className="mr-2 -ml-1 h-4 w-4" aria-hidden="true" />
-                  {isGuest ? "Return to Home" : "Sign Out"}
+                  Sign Out
                 </button>
               </div>
             </div>

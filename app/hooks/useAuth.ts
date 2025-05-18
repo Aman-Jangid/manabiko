@@ -13,7 +13,10 @@ export const useAuth = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { data: session, update } = useSession();
+  const {
+    //  data: session,
+    update,
+  } = useSession();
   const [authStatus, setAuthStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
@@ -67,6 +70,8 @@ export const useAuth = () => {
         return false;
       }
 
+      window.sessionStorage.setItem("justLoggedIn", "true");
+
       // Update session to get latest user info
       await update();
 
@@ -96,88 +101,6 @@ export const useAuth = () => {
   };
 
   /**
-   * Create or continue as guest user
-   */
-  const continueAsGuest = async (options: AuthOptions = {}) => {
-    setSafeState(() => {
-      setError("");
-      setIsLoading(true);
-      setAuthStatus("loading");
-    });
-
-    try {
-      // If already a guest, just redirect if needed
-      if (session?.user?.isGuest) {
-        if (options.redirect !== false) {
-          router.push(options.callbackUrl || "/profile");
-        }
-        setSafeState(() => {
-          setAuthStatus("success");
-        });
-        setTimeout(() => setSafeState(() => setAuthStatus("idle")), 2000);
-        return true;
-      }
-
-      // Create a new guest user
-      const response = await fetch("/api/user/create-guest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Failed to create guest user");
-      }
-
-      // Store guest ID for potential future use
-      localStorage.setItem("guestUserId", data.user.id);
-
-      // Sign in as guest
-      const result = await signIn("credentials", {
-        username: data.user.email,
-        password: "guest-no-password", // Not checked for guests
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setSafeState(() => {
-          setError("Failed to create guest session");
-          setAuthStatus("error");
-        });
-        setTimeout(() => setSafeState(() => setAuthStatus("idle")), 2000);
-        return false;
-      }
-
-      // Update session
-      await update();
-
-      // Redirect if needed
-      if (options.redirect !== false) {
-        router.push(options.callbackUrl || "/profile");
-      }
-
-      setSafeState(() => {
-        setAuthStatus("success");
-      });
-      setTimeout(() => setSafeState(() => setAuthStatus("idle")), 2000);
-      return true;
-    } catch (error) {
-      console.error("Error creating guest session:", error);
-      setSafeState(() => {
-        setError("Failed to create guest session");
-        setAuthStatus("error");
-      });
-      setTimeout(() => setSafeState(() => setAuthStatus("idle")), 2000);
-      return false;
-    } finally {
-      setSafeState(() => {
-        setIsLoading(false);
-      });
-    }
-  };
-
-  /**
    * Register a new user
    */
   const registerUser = async (
@@ -192,9 +115,6 @@ export const useAuth = () => {
     });
 
     try {
-      // Get current guest ID if exists (for potential data migration)
-      const guestUserId = localStorage.getItem("guestUserId");
-
       // Register the user
       const response = await fetch("/api/auth/register", {
         method: "POST",
@@ -203,7 +123,6 @@ export const useAuth = () => {
           username,
           email,
           password,
-          guestUserId, // Send guest ID for potential data migration
         }),
       });
 
@@ -251,26 +170,10 @@ export const useAuth = () => {
     });
 
     try {
-      // Check if current user is a guest
-      const isGuest = session?.user?.isGuest === true;
-
-      // For guest users, we can just redirect without signing out
-      if (isGuest && options.redirect !== false) {
-        router.push(options.callbackUrl || "/");
-        setSafeState(() => {
-          setAuthStatus("success");
-        });
-        setTimeout(() => setSafeState(() => setAuthStatus("idle")), 2000);
-        return true;
-      }
-
       // For registered users, sign out properly
       await signOut({
         redirect: false,
       });
-
-      // Create a new guest session after logout
-      await continueAsGuest({ redirect: false });
 
       // Redirect if needed
       if (options.redirect !== false) {
@@ -302,9 +205,7 @@ export const useAuth = () => {
     isLoading,
     authStatus,
     signInWithCredentials,
-    continueAsGuest,
     registerUser,
     signOutUser,
-    isGuest: session?.user?.isGuest === true,
   };
 };

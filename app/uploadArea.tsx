@@ -9,7 +9,7 @@ import { BookDocument } from "@/types/types";
 import { useFileUpload } from "./hooks/upload/useFileUpload";
 import { usePdfProcessing } from "./hooks/upload/usePdfProcessing";
 import { convertToChapter } from "@/utils/enhanceTOCWithLLM";
-import { calculateFileHash } from "@/lib/utils/fileHash";
+import { calculateFileHash } from "@/utils/fileHash";
 import toast from "react-hot-toast";
 
 export default function UploadArea({

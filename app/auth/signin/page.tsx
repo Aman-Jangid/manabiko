@@ -1,13 +1,17 @@
 "use client";
 
-import { FormEvent, useState, useEffect } from "react";
+import {
+  FormEvent,
+  useState,
+  //  useEffect
+} from "react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { FormInput } from "@/components/FormInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/app/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+// import { useSession } from "next-auth/react";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -15,24 +19,20 @@ export default function SignIn() {
   const [localError, setLocalError] = useState("");
 
   const router = useRouter();
-  const { status } = useSession();
-  const { error, isLoading, signInWithCredentials, continueAsGuest, isGuest } =
-    useAuth();
+  // const { status } = useSession();
+  const {
+    error,
+    isLoading,
+    signInWithCredentials,
+    // isGuest
+  } = useAuth();
 
   // Redirect to profile if already authenticated as a non-guest user
-  useEffect(() => {
-    if (status === "authenticated" && !isGuest) {
-      router.push("/profile");
-    }
-  }, [status, isGuest, router]);
-
-  // Create a guest user in the background when the sign-in page loads
-  // but only if we're not authenticated
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      continueAsGuest({ redirect: false });
-    }
-  }, [status, continueAsGuest]);
+  // useEffect(() => {
+  //   if (status === "authenticated" && !isGuest) {
+  //     router.push("/profile");
+  //   }
+  // }, [status, isGuest, router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -53,10 +53,6 @@ export default function SignIn() {
     if (!success && !error) {
       setLocalError("Failed to sign in");
     }
-  };
-
-  const handleGuestContinue = () => {
-    continueAsGuest({ redirect: true, callbackUrl: "/profile" });
   };
 
   const handleCancel = () => {
@@ -157,14 +153,7 @@ export default function SignIn() {
               className="font-medium hover:opacity-80 transition-opacity duration-200"
               style={{ color: "var(--color-text-secondary)" }}
             >
-              Cancel & Continue as Guest
-            </button>
-            <button
-              onClick={handleGuestContinue}
-              className="font-medium hover:opacity-80 transition-opacity duration-200"
-              style={{ color: "var(--color-accent)" }}
-            >
-              Guest Profile
+              Cancel
             </button>
           </div>
         </div>
