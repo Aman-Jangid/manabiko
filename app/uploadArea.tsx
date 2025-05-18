@@ -12,16 +12,19 @@ import { convertToChapter } from "@/utils/enhanceTOCWithLLM";
 import { calculateFileHash } from "@/utils/fileHash";
 import toast from "react-hot-toast";
 
+interface UploadAreaProps {
+  close?: () => void;
+  showClose?: boolean;
+}
+
 export default function UploadArea({
   close = () => {},
   showClose = false,
-}: {
-  close?: () => void;
-  showClose?: boolean;
-}) {
+}: UploadAreaProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const { addBook, books } = useLibrary();
   const { uploadFile } = useFileUpload();
+  const [isAddingToLibrary, setIsAddingToLibrary] = useState(false);
 
   const {
     isProcessing,
@@ -44,47 +47,60 @@ export default function UploadArea({
   // Add to Library handler
   const handleAddToLibrary = async () => {
     if (!metadata || !uploadedFile || !enhancedChapters) return;
+    setIsAddingToLibrary(true);
+    const hadBooks = books.length > 0;
+    try {
+      const { filePath, success } = await uploadFile(uploadedFile);
+      if (!success) {
+        toast.error("Failed to upload file", {
+          position: "bottom-right",
+          duration: 1000,
+        });
+        setIsAddingToLibrary(false);
+        return;
+      }
 
-    const { filePath, success } = await uploadFile(uploadedFile);
-    if (!success) {
-      toast.error("Failed to upload file", {
-        position: "bottom-right",
-        duration: 1000,
-      });
-      return;
+      const fileHash = await calculateFileHash(uploadedFile);
+
+      const newBook: BookDocument = {
+        title: metadata.title || uploadedFile.name,
+        author: metadata.author || "Unknown",
+        isbn: metadata.isbn || "",
+        coverUrl: coverImage || "",
+        lastOpened: new Date(),
+        progress: 0,
+        filePath,
+        tableOfContents: enhancedChapters.map(convertToChapter),
+        description: metadata.description || "",
+        fileHash,
+        file: uploadedFile,
+      };
+
+      // Check for duplicates
+      const duplicate = books.find(
+        (book) => book.filepath === newBook.filePath
+      );
+      if (duplicate) {
+        toast.error("Book already exists in library", {
+          position: "bottom-right",
+          removeDelay: 1000,
+        });
+        setIsAddingToLibrary(false);
+        if (hadBooks) close();
+        else window.location.reload();
+        return;
+      }
+
+      console.log("newBook in uploadArea : ", newBook);
+
+      await addBook(newBook);
+      setIsAddingToLibrary(false);
+      if (hadBooks) close();
+      else window.location.reload();
+    } catch (e) {
+      setIsAddingToLibrary(false);
+      throw e;
     }
-
-    const fileHash = await calculateFileHash(uploadedFile);
-
-    const newBook: BookDocument = {
-      title: metadata.title || uploadedFile.name,
-      author: metadata.author || "Unknown",
-      isbn: metadata.isbn || "",
-      coverUrl: coverImage || "",
-      lastOpened: new Date(),
-      progress: 0,
-      filePath,
-      tableOfContents: enhancedChapters.map(convertToChapter),
-      description: metadata.description || "",
-      fileHash,
-      file: uploadedFile,
-    };
-
-    // Check for duplicates
-    const duplicate = books.find((book) => book.filepath === newBook.filePath);
-    if (duplicate) {
-      toast.error("Book already exists in library", {
-        position: "bottom-right",
-        removeDelay: 1000,
-      });
-      close();
-      return;
-    }
-
-    console.log("newBook in uploadArea : ", newBook);
-
-    await addBook(newBook);
-    close();
   };
 
   const handleCoverChange = (newCover: string) => {
@@ -153,6 +169,7 @@ export default function UploadArea({
             onCancel={handleCancel}
             onAddToLibrary={handleAddToLibrary}
             onCoverChange={handleCoverChange}
+            isAddingToLibrary={isAddingToLibrary}
           />
         )}
       </div>

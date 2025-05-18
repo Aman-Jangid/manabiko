@@ -16,6 +16,7 @@ interface BookPreviewProps {
   onCancel: () => void;
   onAddToLibrary: () => void;
   onCoverChange: (newCover: string) => void;
+  isAddingToLibrary: boolean;
 }
 
 export default function BookPreview({
@@ -30,6 +31,7 @@ export default function BookPreview({
   onCancel,
   onAddToLibrary,
   onCoverChange,
+  isAddingToLibrary,
 }: BookPreviewProps) {
   return (
     <div
@@ -66,6 +68,7 @@ export default function BookPreview({
             onProcess={onProcess}
             onCancel={onCancel}
             onAddToLibrary={onAddToLibrary}
+            isAddingToLibrary={isAddingToLibrary}
           />
 
           {enhancedChapters && <ChapterViewer chapters={enhancedChapters} />}
