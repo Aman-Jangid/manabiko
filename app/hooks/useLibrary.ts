@@ -1,16 +1,23 @@
 import { BookDocument, BookMetadata } from "@/types/types";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function useLibrary() {
   const [books, setBooks] = useState<BookMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const loadLibrary = async () => {
     try {
       setLoading(true);
       const response = await fetch("/api/books");
       const data = await response.json();
+
+      if (response.status === 401) {
+        router.push("/auth/required");
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch books");

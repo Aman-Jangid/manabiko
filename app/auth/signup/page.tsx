@@ -7,7 +7,7 @@ import { FormInput } from "@/components/FormInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { useAuth } from "@/app/hooks/useAuth";
 import { useRouter } from "next/navigation";
-// import { useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 export default function SignUp() {
   const [username, setUsername] = useState("");
@@ -17,7 +17,7 @@ export default function SignUp() {
   const [localError, setLocalError] = useState("");
 
   const router = useRouter();
-  // const { status } = useSession();
+  const { status } = useSession();
   const { error, isLoading, registerUser } = useAuth();
 
   const handleSubmit = async (e: FormEvent) => {
@@ -45,7 +45,11 @@ export default function SignUp() {
   };
 
   const handleCancel = () => {
-    router.push("/");
+    if (status === "unauthenticated") {
+      router.push("/auth/required");
+    } else {
+      router.push("/");
+    }
   };
 
   return (
