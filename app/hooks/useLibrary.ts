@@ -40,6 +40,7 @@ export function useLibrary() {
 
   useEffect(() => {
     loadLibrary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addBook = async (book: BookDocument) => {

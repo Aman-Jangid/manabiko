@@ -1,9 +1,9 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/app/hooks/useAuth";
-import { usePathname } from "next/navigation";
+// import { useSession } from "next-auth/react";
+// import { useEffect, useState } from "react";
+// import { useAuth } from "@/app/hooks/useAuth";
+// import { usePathname } from "next/navigation";
 
 /**
  * Component that automatically creates a guest session when no active session exists.

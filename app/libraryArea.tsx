@@ -76,13 +76,7 @@ export default function LibraryArea() {
 
   // Show upload area or library content
   if (addingBook) {
-    return (
-      <UploadArea
-        close={handleCancelAddBook}
-        showClose={true}
-        reloadLibrary={reload}
-      />
-    );
+    return <UploadArea close={handleCancelAddBook} showClose={true} />;
   }
 
   return (
