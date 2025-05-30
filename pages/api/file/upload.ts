@@ -46,6 +46,7 @@ const uploadFile = async (req: NextApiRequest, res: NextApiResponse) => {
           headers: {
             ...formData.getHeaders(),
           },
+          timeout: 60000 // Increased timeout to 60 seconds
         }
       );
 

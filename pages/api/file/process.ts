@@ -24,7 +24,10 @@ export default async function handler(
     const apiResponse = await axios.post(
       `${expressApiUrl}/process`,
       { filePath: filepath },
-      { headers: { "Content-Type": "application/json" } }
+      { 
+        headers: { "Content-Type": "application/json" },
+        timeout: 60000 // Increased timeout to 60 seconds
+      }
     );
 
     const { processedData } = apiResponse.data || {};
